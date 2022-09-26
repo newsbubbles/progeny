@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+   	<title>Progeny: Communicative CA</title>
+   	<script src="rl.js"></script>
+   	<script src="kdTree.js"></script>
+   	<script src="linknodes.js"></script>
+   	<script src="progeny.js"></script>
+   	<style type="text/css">
+   		body {
+   			background-color: #222;
+   			margin: 0px;
+   		}
+   	</style>
+  </head>
+  <body>
+  	<canvas id="world"></canvas>
+  	<script type="text/javascript">
+  		window.addEventListener('load', function(e){
+  			//make sure canvas resizes
+  			function resizeCanvas(e){
+  				var el = _.q('#world');
+  				el.width = window.innerWidth;
+  				el.height = window.innerHeight;
+  			}
+  			window.addEventListener('resize', resizeCanvas);
+  			resizeCanvas(null)
+  		});
+  	</script>
+  </body>
+</html>
