@@ -21,7 +21,7 @@
   	<script type="text/javascript">
 		const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
-  		const easeLoc = 0.02, easeVel = 0.03, minDist = 5, maxVel = 0.5;
+  		const easeLoc = 0.002, easeVel = 0.3, minDist = 5, maxVel = 2;
   		const minRewardDist = 30;
 
   		window.clipcell = function(cell){
@@ -39,7 +39,7 @@
   		}
   		function dist(v1, v2){
   			var d = locDiff(v1, v2);
-  			return Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+  			return Math.sqrt(Math.abs(d[0] * d[0] + d[1] * d[1]));
   		}
   		function velDiff(v1, v2){
   			return [v2[2] - v1[2], v2[3] - v1[3]];
@@ -74,28 +74,28 @@
 					},
 					function(cell, neighbor){
 						//Move toward neighbor
-						d = locDiff(cell.data, neighbor.data);
+						d = locDiff(cell.data, neighbor[0]);
 						e = vecMult(d, easeLoc);
 						cell.data[2] += e[0];
 						cell.data[3] += e[1];
 					},
 					function(cell, neighbor){
 						//Move away from neighbor
-						d = locDiff(cell.data, neighbor.data);
+						d = locDiff(cell.data, neighbor[0]);
 						e = vecMult(d, easeLoc);
 						cell.data[2] -= e[0];
 						cell.data[3] -= e[1];
 					},
 					function(cell, neighbor){
 						//Move in same direction as neighbor
-						d = velDiff(cell.data, neighbor.data);
+						d = velDiff(cell.data, neighbor[0]);
 						e = vecMult(d, easeVel);
 						cell.data[2] += e[0];
 						cell.data[3] += e[1];
 					},
 					function(cell, neighbor){
 						//Move in opposite direction
-						d = velDiff(cell.data, neighbor.data);
+						d = velDiff(cell.data, neighbor[0]);
 						e = vecMult(d, easeVel);
 						cell.data[2] -= e[0];
 						cell.data[3] -= e[1];
@@ -111,7 +111,7 @@
 				},
 				cellReward: function(cell, neighbor){
 					// Negative reward for being near neighbor
-					d = dist(cell.data, neighbor.data);
+					d = dist(cell.data, neighbor[0]);
 					if (d < minDist){
 						return -1.0;
 					}else{
@@ -130,6 +130,17 @@
   						var y = Math.round(cell.data[1]);
   						var r = 5, rr = 10;
   						ctx.fillStyle = colormap[index].hex;
+  						/*if (cell.neighbors.length > 0){
+	  						var n = cell.neighbors[0][0];
+	  						var xn = Math.round(n[0]);
+	  						var yn = Math.round(n[1]);
+	  						ctx.strokeStyle = ctx.fillStyle;
+	  						ctx.beginPath();
+	  						ctx.moveTo(x, y);
+	  						ctx.lineTo(xn, yn);
+	  						ctx.stroke();
+	  						ctx.closePath();
+	  					}*/
   						ctx.fillRect(x - r, y - r, rr, rr);
   					});
   				},

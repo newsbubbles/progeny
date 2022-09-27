@@ -138,6 +138,14 @@ var _ = {
 		}
 		return o;
 	},
+	dist: function(v1, v2){
+		d = _.diff(v1, v2);
+		a = 0;
+		for (var i = 0; i < d.length; i++){
+			a += d[i] * d[i];
+		}
+		return Math.sqrt(Math.abs(a));
+	},
 }
 
 // Define the world and layout of the world
@@ -153,12 +161,15 @@ class World {
 		this.initEnergy = config['initEnergy'] || 100;
 		this.interval = config['interval'] || 10;
 		this.initDimRange = config['initDimRange'] || null;
+		this.dimTitles = config['dimTitles'] || null;
+		this.neighborDistance = config['neighborDistance'] || null;
 
 		//working vars
 		this.session = null;
 		this.cells = LL();
 		this.elements = [];
 		this.frame = 0;
+		this.tree = null;
 
 		//callbacks
 		this.onDraw = config['draw'] || null;
@@ -230,7 +241,11 @@ class World {
 	}
 
 	step(){
-		var cell;
+		var cellArr = [];
+		this.cells.forEach(function(cell, index){
+			cellArr.push(cell.data);
+		});
+		this.tree = new kdTree(cellArr, _.dist, this.dimTitles);
 		this.cells.forEach(function(cell, index){
 			cell.step();
 		});
@@ -272,6 +287,7 @@ class Cell {
 		this.config = config;
 		this.dim = config['dim'] || 10;
 		this.maxNeighbors = config['maxNeighbors'] || 4;
+		this.neighborDistance = config['neighborDistance'] || 300;
 		this.shape = [this.dim, this.maxNeighbors];
 		this.size = this.dim * this.maxNeighbors;
 
@@ -305,14 +321,16 @@ class Cell {
 	step(){
 		//take an action, s = vector of max_n * 2
 		//change s from concat n.data to only concat shared data
+		this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
 		var l = this.neighbors.length;
+		//console.log(neighbors);
 		if (l == 0) return;
 		var s = this.data;
 
 		//For EACH NEIGHBOR
 		for (var i = 0; i < l; i++){
 			var n = this.neighbors[i];
-			var ss = _.diff(s, n.data);
+			var ss = _.diff(s, n);
 			var action = this.brain.act(ss);
 			//console.log(ss, action, n);
 
