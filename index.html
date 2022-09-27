@@ -21,8 +21,8 @@
   	<script type="text/javascript">
 		const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
-  		const easeLoc = 0.005, easeVel = 0.3, minDist = 5, maxVel = 0.5;
-  		const minRewardDist = 10;
+  		const easeLoc = 0.02, easeVel = 0.03, minDist = 5, maxVel = 0.5;
+  		const minRewardDist = 30;
 
   		window.clipcell = function(cell){
   			if (cell.data[0] < 0) cell.data[0] += canvas.width;
@@ -115,8 +115,6 @@
 					if (d < minDist){
 						return -1.0;
 					}else{
-						//Positive reward for being near original cell
-						d = dist(cell.data, cell.world.cells.origNode.d.data);
 						if (d < minRewardDist){
 							return 2.0;
 						}else{

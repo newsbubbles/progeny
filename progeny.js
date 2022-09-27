@@ -131,6 +131,13 @@ var _ = {
 		}
 		return o;
 	},
+	diff: function(v1, v2){
+		var l = v2.length, o = [];
+		for (var i = 0; i < l; i++){
+			o.push(v2[i] - v1[i]);
+		}
+		return o;
+	},
 }
 
 // Define the world and layout of the world
@@ -182,7 +189,7 @@ class World {
 	createEnv(){
 		// numStates = n * 2
 		// numActions = []
-		const _n = this.dataWidth * 2; //this.maxLinks * this.dataWidth;
+		const _n = this.dataWidth; //this.maxLinks * this.dataWidth;
 		const _m = this.actionSpace.length
 		this.env = {};
 		this.env.getNumStates = function(){ return _n; }
@@ -305,7 +312,7 @@ class Cell {
 		//For EACH NEIGHBOR
 		for (var i = 0; i < l; i++){
 			var n = this.neighbors[i];
-			var ss = s.concat(n.data);
+			var ss = _.diff(s, n.data);
 			var action = this.brain.act(ss);
 			//console.log(ss, action, n);
 
