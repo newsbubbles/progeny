@@ -6,7 +6,9 @@
    	<script src="rl.js"></script>
    	<script src="kdTree.js"></script>
    	<script src="linknodes.js"></script>
+   	<script src="pipe.js"></script>
    	<script src="progeny.js"></script>
+   	<script src="colormap.js"></script>
    	<style type="text/css">
    		body {
    			background-color: #222;
@@ -17,15 +19,134 @@
   <body>
   	<canvas id="world"></canvas>
   	<script type="text/javascript">
+		const canvas = _.q('#world');
+  		const ctx = canvas.getContext('2d');
+  		const easeLoc = 0.005, easeVel = 0.3, minDist = 5, maxVel = 0.5;
+  		const minRewardDist = 10;
+
+  		window.clipcell = function(cell){
+  			if (cell.data[0] < 0) cell.data[0] += canvas.width;
+  			if (cell.data[1] < 0) cell.data[1] += canvas.height;
+  			if (cell.data[0] > canvas.width) cell.data[0] = 0;
+  			if (cell.data[1] > canvas.height) cell.data[1] = 0;
+  			if (cell.data[2] > maxVel) cell.data[2] = maxVel;
+  			if (cell.data[2] < -maxVel) cell.data[2] = -maxVel;
+  			if (cell.data[3] > maxVel) cell.data[3] = maxVel;
+  			if (cell.data[3] < -maxVel) cell.data[3] = -maxVel;
+  		};
+  		function locDiff(v1, v2){
+  			return [v2[0] - v1[0], v2[1] - v1[1]];
+  		}
+  		function dist(v1, v2){
+  			var d = locDiff(v1, v2);
+  			return Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+  		}
+  		function velDiff(v1, v2){
+  			return [v2[2] - v1[2], v2[3] - v1[3]];
+  		}
+  		function vecMult(v, m){
+  			return [v[0] * m, v[1] * m];
+  		}
+
+  		// Load World and visualize it in the Canvas
   		window.addEventListener('load', function(e){
   			//make sure canvas resizes
+
   			function resizeCanvas(e){
-  				var el = _.q('#world');
+  				var el = canvas;
   				el.width = window.innerWidth;
   				el.height = window.innerHeight;
   			}
   			window.addEventListener('resize', resizeCanvas);
-  			resizeCanvas(null)
+  			resizeCanvas(null);
+
+  			//pipe = new Pipe()
+			//console.log(pipe.steps)
+
+  			var conf = {
+  				numCells: 30,
+  				dataWidth: 4,
+  				dimTitles: ['x', 'y', 'vx', 'vy'],
+  				initDimRange: [canvas.width, canvas.height, 0, 0],
+  				actions: [	/* This defines the action space the DQN outputs */
+					function(cell, neighbor){
+						//Do Nothing...
+					},
+					function(cell, neighbor){
+						//Move toward neighbor
+						d = locDiff(cell.data, neighbor.data);
+						e = vecMult(d, easeLoc);
+						cell.data[2] += e[0];
+						cell.data[3] += e[1];
+					},
+					function(cell, neighbor){
+						//Move away from neighbor
+						d = locDiff(cell.data, neighbor.data);
+						e = vecMult(d, easeLoc);
+						cell.data[2] -= e[0];
+						cell.data[3] -= e[1];
+					},
+					function(cell, neighbor){
+						//Move in same direction as neighbor
+						d = velDiff(cell.data, neighbor.data);
+						e = vecMult(d, easeVel);
+						cell.data[2] += e[0];
+						cell.data[3] += e[1];
+					},
+					function(cell, neighbor){
+						//Move in opposite direction
+						d = velDiff(cell.data, neighbor.data);
+						e = vecMult(d, easeVel);
+						cell.data[2] -= e[0];
+						cell.data[3] -= e[1];
+					},
+				],
+				cellStep: function(cell){
+					// This happens after cell walks through neighbors
+
+					//use the data[2] and data[3] as velocity vector for data[0] and data[1]
+					cell.data[0] += cell.data[2];
+					cell.data[1] += cell.data[3];
+					window.clipcell(cell);
+				},
+				cellReward: function(cell, neighbor){
+					// Negative reward for being near neighbor
+					d = dist(cell.data, neighbor.data);
+					if (d < minDist){
+						return -1.0;
+					}else{
+						//Positive reward for being near original cell
+						d = dist(cell.data, cell.world.cells.origNode.d.data);
+						if (d < minRewardDist){
+							return 2.0;
+						}else{
+							return 0.0;
+						}
+					}
+				},
+				interval: 0,
+  				draw: function(world){
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+  					world.cells.forEach(function(cell, index){
+  						var x = Math.round(cell.data[0]);
+  						var y = Math.round(cell.data[1]);
+  						var r = 5, rr = 10;
+  						ctx.fillStyle = colormap[index].hex;
+  						ctx.fillRect(x - r, y - r, rr, rr);
+  					});
+  				},
+  			};
+
+  			// Create world from configuration
+  			window.world = new World(conf);
+
+  			// Create the cells in the world
+  			window.world.generate();
+  			console.log(world.cells.origNode);
+  			
+  			// Start the world, to stop use world.stop()
+  			world.start();
+
   		});
   	</script>
   </body>

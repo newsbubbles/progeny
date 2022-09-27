@@ -107,163 +107,154 @@ var _ = {
 			break;
 		}
 	},
+	sample: function(amount, n, summate){
+		var dims = null, use_dims = false;
+		if (typeof summate === 'boolean'){
+			summate = typeof summate === 'undefined' ? false: summate;
+		}else{
+			dims = summate;
+			use_dims = true;
+			summate = false;
+		}
+		// gives back list of `n` floats which randomly add up to `amount`
+		var o = [], 
+			nn = n - 1,
+			r = amount / (n / 2);
+		for (var i = 0; i < n; i++){
+			if (summate){
+				a = (i < nn) ? Math.random() * ((r < amount) ? r: amount): amount;
+				amount -= a;
+			}else{
+				a = Math.random() * ((use_dims) ? dims[i]: amount);
+			}
+			o.push(a);
+		}
+		return o;
+	},
 }
 
 // Define the world and layout of the world
 class World {
-	constructor(config, canvas){
+	constructor(config){
 		this.config = config;
-		this.canvas = canvas;
 		this.rows = config['rows'] || 80;
 		this.cols = config['cols'] || 60;
 		this.size = this.rows * this.cols;
 		this.maxLinks = config['maxLinks'] || 4;
 		this.dataWidth = config['dataWidth'] || 2;
 		this.numCells = config['numCells'] || 10;
+		this.initEnergy = config['initEnergy'] || 100;
+		this.interval = config['interval'] || 10;
+		this.initDimRange = config['initDimRange'] || null;
 
 		//working vars
 		this.session = null;
-		this.cells = LL()
-		//Define the action space (acts on a cell or neighbor)
-		this.actionSpace = [
-			function(cell, neighbor){
+		this.cells = LL();
+		this.elements = [];
+		this.frame = 0;
 
+		//callbacks
+		this.onDraw = config['draw'] || null;
+		this.onCellStep = config['cellStep'] || null;
+		this.onCalcReward = config['cellReward'] || null;
+		
+		//Define the action space (acts on a cell or neighbor)
+		this.actionSpace = config['actions'] || [
+			function(cell, neighbor){
+				//Do Nothing...
+				cell.data[0] -= 1;
 			},
-		]
+			function(cell, neighbor){
+				//Send Neighbor a message
+				cell.data[0] += 1;
+			},
+			function(cell, neighbor){
+				//Do Nothing...
+				cell.data[1] += 1;
+			},
+			function(cell, neighbor){
+				//Do Nothing...
+				cell.data[1] -= 1;
+			},
+		];
 	}
 
 	createEnv(){
 		// numStates = n * 2
 		// numActions = []
-		const _n = this.maxLinks * this.dataWidth;
-		const _m = this
+		const _n = this.dataWidth * 2; //this.maxLinks * this.dataWidth;
+		const _m = this.actionSpace.length
 		this.env = {};
 		this.env.getNumStates = function(){ return _n; }
-		this.env.getMaxNumActions = function(){ return  }
+		this.env.getMaxNumActions = function(){ return _m; }
+	}
+
+	createElements(){
+		for (var i = 0; i < this.dataWidth; i++){
+			this.elements.push(Math.round(Math.random() * 65536) - 32768);
+		}
 	}
 
 	generate(){
 		// Layout initial cells
 		this.createEnv();
+		if (this.elements.length == 0) 
+			this.createElements();
+		var conf = {
+			'world': this,
+			'env': this.env,
+			'dim': this.dataWidth,
+			'keys': this.elements,
+			'afterStep': this.onCellStep,
+			'reward': this.onCalcReward,
+		};
+		console.log(conf);
+		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
 		for (var i = 0; i < this.numCells; i++){
+			var data = _.sample(this.initEnergy, this.dataWidth, use_dr);
+			var cell = new Cell(conf, data);
 
+			//TODO: Replace simple static linking like this
+			if (this.cells.count > 0)
+				cell.link(this.cells.node.d);
+
+			this.cells.push(cell);
 		}
 	}
 
 	step(){
 		var cell;
-		while ((cell = this.cells.next()) !== null){
-			cell.step()
+		this.cells.forEach(function(cell, index){
+			cell.step();
+		});
+		if (this.onDraw != null){
+			this.onDraw(this);
 		}
+		this.frame += 1;
 	}
 
 	start(){
-		this.session = setInterval(this.step(), 0);
+		this.session = setInterval(function(){window.world.step()}, this.interval);
+	}
+
+	stop(){
+		clearInterval(this.session);
+		this.session = null;
 	}
 
 	layout(type){
-		conf = this.config;
+		var conf = this.config;
 
 	}
 }
 
-/*
-3 term equations are a simple function o = f(x, y)
-basic operations account for both frequency and value ratios
-reversing the 3 term equation 
-A matrix of this function can be 
-*/
-class Func {
-	construct(){
-		this.initialized = false;
-	}
-
-	input(x, y){
-		this.d = [x, y];
-		Object.freeze(this.d);
-		this.forward();
-		this.initilized = true;
-	}
-
-	forward(){
-		this.o = this.d[0] + this.d[1];
-		return this.o;
-	}
-
-	/* Usage: reverse([0, 1]) */
-	reverse(a){
-		return this.o - this._get(a)[0];
-	}
-
-	_get(given){
-		if (given > 1 || given < 0) return null;
-		var _given = given == 0 ? 1: 0;
-		return [this.d[given], this.d[_given]];
-	}
-}
-
-class Add extends Func {
-	forward(){
-		this.o = this.d[0] + this.d[1];
-		return this.o;
-	}
-	reverse(a){
-		return this.o - this._get(a)[0];
-	}
-}
-
-class Sub extends Func {
-	forward(){
-		this.o = this.d[0] - this.d[1];
-		return this.o;
-	}
-	reverse(a){
-		return this.o + this._get(a)[0];
-	}
-}
-
-class Mult extends Func {
-	forward(){
-		this.o = this.d[0] * this.d[1];
-		return this.o;
-	}
-	reverse(a){
-		return this.o / this._get(a)[0];
-	}
-}
-
-class Div extends Func {
-	forward(){
-		this.o = this.d[0] / this.d[1];
-		return this.o;
-	}
-	reverse(a){
-		return this.o * this._get(a)[0];
-	}	
-}
-
-/*	
-	A pipe is used to compute some output from input data
-*/
-class Pipe {
-	constructor(funcs){
-		this.steps = (typeof(funcs) !== 'undefined') ? funcs: this.genfuncs(3);
-	}
-
-	genfuncs(n){
-		this.steps = [];
-		for (var i = 0; i < n; i++){
-			var r = Math.floor(Math.random() * 3.999)
-			console.log(i + ': ' + r)
-			this.steps.push(_.f(r));
-		}
-		return this.steps;
-	}
-}
 
 class Cell {
 
 	constructor(config, data){
+		//World
+		this.world = config['world'] || null;
+
 		//Agent
 		this.brain = new RL.DQNAgent(config['env'], config['spec'] || { alpha: 0.01});
 
@@ -272,20 +263,81 @@ class Cell {
 
 		//Configuration of cell limits like maxDims, etc.
 		this.config = config;
-		
+		this.dim = config['dim'] || 10;
+		this.maxNeighbors = config['maxNeighbors'] || 4;
+		this.shape = [this.dim, this.maxNeighbors];
+		this.size = this.dim * this.maxNeighbors;
+
 		//Live cell data (state)
 		//	a map of vectors that gives amp/freq
-		this.data = (data == null) ? {}: data;
+		this.keys = config['keys'] || [];
+		this.data = (typeof data === 'undefined') ? {}: data;
 
+		//Callbacks
+		this._afterStep = config['afterStep'] || null;
+		this._calcReward = config['reward'] || null;
+	}
+
+	link(cell){
+		this.neighbors.push(cell);
+		cell.neighbors.push(this);
+	}
+
+	unlink(cell){
+		this.neighbors.pop(cell);
+	}
+
+	distance(neighbor){
+		var o = [], l = neighbor.data.length;
+		for (var i = 0; i < l; i++){
+			o.append(neighbor.data[i] - this.data[i]);
+		}
+		return o;
 	}
 
 	step(){
 		//take an action, s = vector of max_n * 2
-		s = this.input
-		var action = this.brain.act(s);
+		//change s from concat n.data to only concat shared data
+		var l = this.neighbors.length;
+		if (l == 0) return;
+		var s = this.data;
 
-		// do stuff in world and get reward
-		cell.brain.learn(reward);
+		//For EACH NEIGHBOR
+		for (var i = 0; i < l; i++){
+			var n = this.neighbors[i];
+			var ss = s.concat(n.data);
+			var action = this.brain.act(ss);
+			//console.log(ss, action, n);
+
+			this.performAction(action, n);
+
+			// calculate reward from this interaction?
+			// or async calculation of reward on message reception?
+			//console.log(this.data, n);
+			var reward = this.calculateReward(n);
+
+			// learn from reward
+			this.brain.learn(reward);
+		}
+		this.afterStep();
+	}
+
+	performAction(action, neighbor){
+		if (this.world == null) return 0.0;
+		return this.world.actionSpace[action](this, neighbor);
+	}
+
+	calculateReward(neighbor){
+		//console.log(this.data, neighbor);
+		if (this._calcReward != null)
+			return this._calcReward(this, neighbor);
+		else
+			return 0;
+	}
+
+	afterStep(){
+		if (this._afterStep != null)
+			this._afterStep(this);
 	}
 
 	// Receive input and do something with it
@@ -314,5 +366,3 @@ class Cell {
 
 }
 
-pipe = new Pipe()
-console.log(pipe.steps)
