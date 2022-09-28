@@ -161,6 +161,7 @@ class World {
 		this.initEnergy = config['initEnergy'] || 100;
 		this.interval = config['interval'] || 10;
 		this.initDimRange = config['initDimRange'] || null;
+		this.initValues = config['initValues'] || null;
 		this.dimTitles = config['dimTitles'] || null;
 		this.neighborDistance = config['neighborDistance'] || null;
 
@@ -228,8 +229,15 @@ class World {
 		};
 		console.log(conf);
 		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
+		var use_iv = this.initValues != null
 		for (var i = 0; i < this.numCells; i++){
 			var data = _.sample(this.initEnergy, this.dataWidth, use_dr);
+			if (use_iv){ 	// Override if initValues are given
+				for (var _i = 0; _i < this.initValues.length; _i++){
+					var _v = this.initValues[_i];
+					if (_v != null) data[_i] = _v;
+				}
+			}
 			var cell = new Cell(conf, data);
 
 			//TODO: Replace simple static linking like this
@@ -323,7 +331,6 @@ class Cell {
 		//change s from concat n.data to only concat shared data
 		this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
 		var l = this.neighbors.length;
-		//console.log(neighbors);
 		if (l == 0) return;
 		var s = this.data;
 
