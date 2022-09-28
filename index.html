@@ -22,7 +22,8 @@
 		const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
   		const easeLoc = 0.002, easeVel = 0.3, minDist = 5, maxVel = 2;
-  		const minRewardDist = 30;
+  		const minRewardDist = 30, ratioPredator = 0.2;
+  		//const deathAudio = new Audio('dead.wav');
 
   		window.clipcell = function(cell){
   			if (cell.data[0] < 0) cell.data[0] += canvas.width;
@@ -64,10 +65,11 @@
 			//console.log(pipe.steps)
 
   			var conf = {
-  				numCells: 30,
-  				dataWidth: 4,
-  				dimTitles: ['x', 'y', 'vx', 'vy'],
-  				initDimRange: [canvas.width, canvas.height, 0, 0],
+  				numCells: 20,
+  				dataWidth: 6,
+  				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'c', 'd', 'e', 'f', 'g'],
+  				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 80, 100, 120, 180],
+  				initValues: [null, null, null, null, null, 1],
   				actions: [	/* This defines the action space the DQN outputs */
 					function(cell, neighbor){
 						//Do Nothing...
@@ -110,26 +112,64 @@
 					window.clipcell(cell);
 				},
 				cellReward: function(cell, neighbor){
-					// Negative reward for being near neighbor
+					// Negative reward for being near neighbor if neighbor is hunter
 					d = dist(cell.data, neighbor[0]);
-					if (d < minDist){
-						return -1.0;
-					}else{
+					// Is the 
+					var cp = cell.data[4] < ratioPredator, 
+						np = neighbor[0][4] < ratioPredator;
+					var chase = cp && !np, 
+						run = !cp && np, 
+						team = cp && np || !cp && !np;
+					//console.log(d, minDist);
+					if (d > 0 && d < minDist){
+						// make the cell lose life.
+						//console.log('hithit', cell.data[4], neighbor[0][4], ratioPredator, run || chase);
+						if (run){
+							cell.data[5] -= 0.1;
+							// if prey neighbor dies, give big reward, and neg to prey
+							//console.log('hit!');
+							if (cell.data[5] <= 0.0){ // dead
+								//console.log('DEAD!');
+								cell.data[0] = Math.random() * canvas.width;
+								cell.data[1] = Math.random() * canvas.height;
+								cell.data[2] = 0;
+								cell.data[3] = 0;
+								cell.data[5] = 1.0;
+								return -20.0;
+							}
+						}
+						// give a big reward if prey is dead
+						if (chase){
+							if (neighbor[0][5] <= 0.1){
+								//console.log('KILL!');
+								return 20.0;
+							}
+						}
+						return chase ? 1.0: run ? -1.0: team && !cp ? 2.0: 0.0;
+					}
+					if (team && !cp && d < minRewardDist && d > 0){
+						return 1.0;
+					}
+					/*else{
 						if (d < minRewardDist){
-							return 2.0;
+							return chase ? 1.0: run ? -1.0: team && !cp ? 2.0: 0.0;
 						}else{
 							return 0.0;
 						}
-					}
+					}*/
 				},
 				interval: 0,
   				draw: function(world){
 					ctx.clearRect(0, 0, canvas.width, canvas.height);
   					world.cells.forEach(function(cell, index){
+  						var predator = cell.data[4] < ratioPredator;
   						var x = Math.round(cell.data[0]);
   						var y = Math.round(cell.data[1]);
-  						var r = 5, rr = 10;
+  						var r = (predator ? 8: 5);
+  						var rr = r * 2;
+  						var ir = r * cell.data[5], irr = rr * cell.data[5];
   						ctx.fillStyle = colormap[index].hex;
+  						ctx.strokeStyle = predator ? '#f00': '#0f0';
   						/*if (cell.neighbors.length > 0){
 	  						var n = cell.neighbors[0][0];
 	  						var xn = Math.round(n[0]);
@@ -141,7 +181,11 @@
 	  						ctx.stroke();
 	  						ctx.closePath();
 	  					}*/
-  						ctx.fillRect(x - r, y - r, rr, rr);
+  						ctx.fillRect(x - ir, y - ir, irr, irr);
+  						ctx.lineWidth = 1;
+  						ctx.beginPath();
+  						ctx.rect(x - r, y - r, rr, rr);
+  						ctx.stroke();
   					});
   				},
   			};
