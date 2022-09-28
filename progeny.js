@@ -302,7 +302,10 @@ class Cell {
 		this.size = this.dim * this.maxNeighbors;
 
 		//Stats
-		this.stats = config['stats'] || null;
+		this.stats = null;
+		if (config.hasOwnProperty('stats')){
+			this.stats = Object.assign({}, config['stats']);
+		}
 
 		//Live cell data (state)
 		//	a map of vectors that gives amp/freq
