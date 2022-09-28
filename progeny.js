@@ -164,6 +164,7 @@ class World {
 		this.initValues = config['initValues'] || null;
 		this.dimTitles = config['dimTitles'] || null;
 		this.neighborDistance = config['neighborDistance'] || null;
+		this.cellStats = config['stats'] || null;
 
 		//working vars
 		this.session = null;
@@ -226,6 +227,7 @@ class World {
 			'keys': this.elements,
 			'afterStep': this.onCellStep,
 			'reward': this.onCalcReward,
+			'stats': this.cellStats,
 		};
 		console.log(conf);
 		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
@@ -299,6 +301,9 @@ class Cell {
 		this.shape = [this.dim, this.maxNeighbors];
 		this.size = this.dim * this.maxNeighbors;
 
+		//Stats
+		this.stats = config['stats'] || null;
+
 		//Live cell data (state)
 		//	a map of vectors that gives amp/freq
 		this.keys = config['keys'] || [];
@@ -365,6 +370,11 @@ class Cell {
 			return this._calcReward(this, neighbor);
 		else
 			return 0;
+	}
+
+	count(stat, n){
+		if (typeof n === 'undefined') n = 1;
+		this.stats[stat] += n;
 	}
 
 	afterStep(){

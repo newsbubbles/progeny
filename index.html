@@ -70,7 +70,12 @@
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'c', 'd', 'e', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 80, 100, 120, 180],
   				initValues: [null, null, null, null, null, 1],
-  				actions: [	/* This defines the action space the DQN outputs */
+  				stats: {
+  					'deaths': 0,
+  					'kills': 0,
+  					'score': 0,
+  				},
+  				actions: [	/* This defines the action space the DQN chooses from */
 					function(cell, neighbor){
 						//Do Nothing...
 					},
@@ -112,9 +117,9 @@
 					window.clipcell(cell);
 				},
 				cellReward: function(cell, neighbor){
-					// Negative reward for being near neighbor if neighbor is hunter
+					// Find 2D distance from neighbor (first two dimensions)
 					d = dist(cell.data, neighbor[0]);
-					// Is the 
+					// Figure out what "team" cell is on and what neighbor is.
 					var cp = cell.data[4] < ratioPredator, 
 						np = neighbor[0][4] < ratioPredator;
 					var chase = cp && !np, 
@@ -122,41 +127,38 @@
 						team = cp && np || !cp && !np;
 					//console.log(d, minDist);
 					if (d > 0 && d < minDist){
-						// make the cell lose life.
-						//console.log('hithit', cell.data[4], neighbor[0][4], ratioPredator, run || chase);
+						// If the cell is "hit"
 						if (run){
+							// If Prey, lose life, or die if life is < 0
 							cell.data[5] -= 0.1;
-							// if prey neighbor dies, give big reward, and neg to prey
-							//console.log('hit!');
-							if (cell.data[5] <= 0.0){ // dead
-								//console.log('DEAD!');
+							if (cell.data[5] <= 0.0){ // DIE FOOL!
 								cell.data[0] = Math.random() * canvas.width;
 								cell.data[1] = Math.random() * canvas.height;
 								cell.data[2] = 0;
 								cell.data[3] = 0;
 								cell.data[5] = 1.0;
+								cell.count('deaths');
+								cell.count('score', -20);
 								return -20.0;
 							}
 						}
-						// give a big reward if prey is dead
 						if (chase){
+							// give a big reward if cell is predator and prey is dead (eaten)
 							if (neighbor[0][5] <= 0.1){
 								console.log('KILL!');
+								cell.count('kills');
+								cell.count('score', -20);
 								return 20.0;
 							}
 						}
-						return chase ? 1.0: run ? -1.0: team && !cp ? 2.0: 0.0;
+						points = chase ? 1.0: run ? -1.0: team && !cp ? 2.0: 0.0;
+						cell.count('score', points);
+						return points;
 					}
 					if (team && !cp && d < minRewardDist && d > 0){
+						cell.count('score');
 						return 1.0;
 					}
-					/*else{
-						if (d < minRewardDist){
-							return chase ? 1.0: run ? -1.0: team && !cp ? 2.0: 0.0;
-						}else{
-							return 0.0;
-						}
-					}*/
 				},
 				interval: 0,
   				draw: function(world){
