@@ -168,7 +168,7 @@
   						var r = (predator ? 8: 5);
   						var rr = r * 2;
   						var ir = r * cell.data[5], irr = rr * cell.data[5];
-  						ctx.fillStyle = predator ? '#a00': '#0a0';
+  						ctx.fillStyle = window.colormap[index].hex;
   						ctx.strokeStyle = predator ? '#f00': '#0f0';
   						/*if (cell.neighbors.length > 0){
 	  						var n = cell.neighbors[0][0];

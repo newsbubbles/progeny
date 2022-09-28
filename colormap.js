@@ -1,4 +1,4 @@
-const colormap = [
+window.colormap = [
   {
     "name": "Absolute Zero",
     "hex": "#0048BA"
