@@ -52,9 +52,11 @@ var LL = function(data){
 
 	o.forEach = function(func){
 		this.reset();
+		var i = 0;
 		while (this.node != null){
-			func(this.node.d);
+			func(this.node.d, i);
 			this.node = this.node.next;
+			i += 1;
 		}
 	};
 
