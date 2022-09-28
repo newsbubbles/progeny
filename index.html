@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
    	<title>Progeny: Communicative CA</title>
-   	<script src="https://raw.githubusercontent.com/newsbubbles/progeny/main/rl.js"></script>
-   	<script src="https://raw.githubusercontent.com/newsbubbles/progeny/main/kdTree.js"></script>
-   	<script src="https://raw.githubusercontent.com/newsbubbles/progeny/main/linknodes.js"></script>
-   	<script src="https://raw.githubusercontent.com/newsbubbles/progeny/main/pipe.js"></script>
-   	<script src="https://raw.githubusercontent.com/newsbubbles/progeny/main/progeny.js"></script>
-   	<script src="https://raw.githubusercontent.com/newsbubbles/progeny/main/colormap.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/kdTree.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/linknodes.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/pipe.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/progeny.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
    	<style type="text/css">
    		body {
    			background-color: #222;
@@ -168,7 +168,7 @@
   						var r = (predator ? 8: 5);
   						var rr = r * 2;
   						var ir = r * cell.data[5], irr = rr * cell.data[5];
-  						ctx.fillStyle = colormap[index].hex;
+  						ctx.fillStyle = predator ? '#a00': '#0a0';
   						ctx.strokeStyle = predator ? '#f00': '#0f0';
   						/*if (cell.neighbors.length > 0){
 	  						var n = cell.neighbors[0][0];
