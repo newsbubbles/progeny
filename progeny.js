@@ -165,6 +165,9 @@ class World {
 		this.dimTitles = config['dimTitles'] || null;
 		this.neighborDistance = config['neighborDistance'] || null;
 		this.cellStats = config['stats'] || null;
+		this.dynamicNeighborhood = config['dynamicNeighborhood'] || true;
+		this.maxNeighbors = config['maxNeighbors'] || 4;
+		this.neighborDistance = config['neighborDistance'] || 300;
 
 		//working vars
 		this.session = null;
@@ -174,11 +177,14 @@ class World {
 		this.tree = null;
 
 		//callbacks
+		this.onInit = config['init'] || null;
 		this.onDraw = config['draw'] || null;
 		this.onCellStep = config['cellStep'] || null;
 		this.onCalcReward = config['cellReward'] || null;
 		
-		//Define the action space (acts on a cell or neighbor)
+		//Define the action space 
+		//	acts on a cell only
+		//	neighbor is just kdTree nearest neighbor result
 		this.actionSpace = config['actions'] || [
 			function(cell, neighbor){
 				//Do Nothing...
@@ -228,6 +234,9 @@ class World {
 			'afterStep': this.onCellStep,
 			'reward': this.onCalcReward,
 			'stats': this.cellStats,
+			'neighborDistance': this.neighborDistance,
+			'maxNeighbors': this.maxNeighbors,
+			'dynamicNeighborhood': this.dynamicNeighborhood,
 		};
 		console.log(conf);
 		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
@@ -266,6 +275,7 @@ class World {
 	}
 
 	start(){
+		if (this.onInit != null) this.onInit(this);
 		this.session = setInterval(function(){window.world.step()}, this.interval);
 	}
 
@@ -298,6 +308,7 @@ class Cell {
 		this.dim = config['dim'] || 10;
 		this.maxNeighbors = config['maxNeighbors'] || 4;
 		this.neighborDistance = config['neighborDistance'] || 300;
+		this.dynamicNeighborhood = config['dynamicNeighborhood'] || true;
 		this.shape = [this.dim, this.maxNeighbors];
 		this.size = this.dim * this.maxNeighbors;
 
@@ -337,7 +348,8 @@ class Cell {
 	step(){
 		//take an action, s = vector of max_n * 2
 		//change s from concat n.data to only concat shared data
-		this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
+		if (this.dynamicNeighborhood)
+			this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
 		var l = this.neighbors.length;
 		if (l == 0) return;
 		var s = this.data;

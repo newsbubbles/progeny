@@ -21,15 +21,37 @@
   	<script type="text/javascript">
 		const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
-  		const easeLoc = 0.002, easeVel = 0.3, minDist = 5, maxVel = 2;
-  		const minRewardDist = 30, ratioPredator = 0.2;
+  		const easeLoc = 0.002, easeVel = 0.3, minDist = 10, maxVel = 2;
+  		const minRewardDist = 30, ratioPredator = 0.1;
   		//const deathAudio = new Audio('dead.wav');
+  		const continuousSpace = false;
+  		const bouncyWalls = true;
 
   		window.clipcell = function(cell){
-  			if (cell.data[0] < 0) cell.data[0] += canvas.width;
-  			if (cell.data[1] < 0) cell.data[1] += canvas.height;
-  			if (cell.data[0] > canvas.width) cell.data[0] = 0;
-  			if (cell.data[1] > canvas.height) cell.data[1] = 0;
+  			// location clipping
+  			if (continuousSpace){
+	  			if (cell.data[0] < 0) cell.data[0] += canvas.width;
+	  			if (cell.data[1] < 0) cell.data[1] += canvas.height;
+	  			if (cell.data[0] > canvas.width) cell.data[0] = 0;
+	  			if (cell.data[1] > canvas.height) cell.data[1] = 0;
+	  		}else{
+	  			var clipped = false, clx = false, cly = false;
+	  			if (cell.data[0] < 0){ cell.data[0] = 0; clipped = true; clx = true;}
+	  			if (cell.data[1] < 0){ cell.data[1] = 0; clipped = true; cly = true;}
+	  			if (cell.data[0] > canvas.width){ cell.data[0] = canvas.width; clipped = true; clx = true;}
+	  			if (cell.data[1] > canvas.height){ cell.data[1] = canvas.height; clipped = true; cly = true;}
+	  			// if hit a border, stop velocity or 
+	  			if (clipped){
+	  				if (bouncyWalls){
+	  					if (clx) cell.data[2] = -cell.data[2];
+	  					if (cly) cell.data[3] = -cell.data[3];
+	  				}else{
+	  					cell.data[2] = 0;
+	  					cell.data[3] = 0;
+	  				}
+	  			}
+	  		}
+	  		// velocity clipping
   			if (cell.data[2] > maxVel) cell.data[2] = maxVel;
   			if (cell.data[2] < -maxVel) cell.data[2] = -maxVel;
   			if (cell.data[3] > maxVel) cell.data[3] = maxVel;
@@ -63,17 +85,32 @@
 
   			//pipe = new Pipe()
 			//console.log(pipe.steps)
+			/*
+				ideas to try:
+					create attacking or sharing
+					create an "energy" metric
+						that is spent for movement
+						that is restored when prey is "together"
+						or when predators eat
+						allow predators to die and respawn
+					make velocity use energy as a lowbounded multiplier
+			*/
 
   			var conf = {
-  				numCells: 30,
+  				numCells: 50,
   				dataWidth: 6,
-  				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'c', 'd', 'e', 'f', 'g'],
-  				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 80, 100, 120, 180],
-  				initValues: [null, null, null, null, null, 1],
+  				maxNeighbors: 2,
+  				neighborDistance: 800,
+  				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
+  				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
+  				initValues: [null, null, null, null, null, 1, 1],
   				stats: {
   					'deaths': 0,
   					'kills': 0,
   					'score': 0,
+  				},
+  				init: function(world){
+
   				},
   				actions: [	/* This defines the action space the DQN chooses from */
 					function(cell, neighbor){
@@ -107,6 +144,35 @@
 						cell.data[2] -= e[0];
 						cell.data[3] -= e[1];
 					},
+					/* Non-relative movement */
+					function(cell, neighbor){
+						//Move up
+						d = velDiff(cell.data, [0, 0, 0, -maxVel]);
+						e = vecMult(d, easeLoc);
+						cell.data[2] += e[0];
+						cell.data[3] += e[1];
+					},
+					function(cell, neighbor){
+						//Move down
+						d = velDiff(cell.data, [0, 0, 0, +maxVel]);
+						e = vecMult(d, easeLoc);
+						cell.data[2] += e[0];
+						cell.data[3] += e[1];
+					},
+					function(cell, neighbor){
+						//Move left
+						d = velDiff(cell.data, [0, 0, -maxVel, 0]);
+						e = vecMult(d, easeLoc);
+						cell.data[2] += e[0];
+						cell.data[3] += e[1];
+					},
+					function(cell, neighbor){
+						//Move right
+						d = velDiff(cell.data, [0, 0, +maxVel, 0]);
+						e = vecMult(d, easeLoc);
+						cell.data[2] += e[0];
+						cell.data[3] += e[1];
+					},
 				],
 				cellStep: function(cell){
 					// This happens after cell walks through neighbors
@@ -138,8 +204,8 @@
 								cell.data[3] = 0;
 								cell.data[5] = 1.0;
 								cell.count('deaths');
-								cell.count('score', -20);
-								return -20.0;
+								cell.count('score', -100);
+								return -100.0;
 							}
 						}
 						if (chase){
@@ -147,11 +213,11 @@
 							if (neighbor[0][5] <= 0.1){
 								console.log('KILL!');
 								cell.count('kills');
-								cell.count('score', -20);
-								return 20.0;
+								cell.count('score', 100);
+								return 100.0;
 							}
 						}
-						points = chase ? 1.0: run ? -1.0: team && !cp ? 2.0: 0.0;
+						points = chase ? 1.0: run ? -2.0: team && !cp ? 1.0: 0.0;
 						cell.count('score', points);
 						return points;
 					}
