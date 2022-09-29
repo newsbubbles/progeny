@@ -97,9 +97,9 @@
 			*/
 
   			var conf = {
-  				numCells: 50,
+  				numCells: 90,
   				dataWidth: 6,
-  				maxNeighbors: 2,
+  				maxNeighbors: 4,
   				neighborDistance: 800,
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
@@ -194,6 +194,7 @@
 					//console.log(d, minDist);
 					if (d > 0 && d < minDist){
 						// If the cell is "hit"
+						console.log('hit');
 						if (run){
 							// If Prey, lose life, or die if life is < 0
 							cell.data[5] -= 0.1;
