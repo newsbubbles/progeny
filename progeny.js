@@ -357,7 +357,7 @@ class Cell {
 		//For EACH NEIGHBOR
 		for (var i = 0; i < l; i++){
 			var n = this.neighbors[i];
-			var ss = _.diff(s, n);
+			var ss = _.diff(s, this.dynamicNeighborhood ? n[0]: n);
 			var action = this.brain.act(ss);
 			//console.log(ss, action, n);
 
