@@ -63,3 +63,5 @@ world.start();
 * `draw` - Callback function for drawing the world on a canvas
 * `cellReward` - The reward function for each cell (controls how they learn)
 * `cellStep` - Callback function happening at the end of each step for cell
+
+For a Demo where Progeny is used to make Predator / Prey simulation check out: https://newsbubbles.github.io/progeny ... and look at index.html source code to see how that demo is setup. 
