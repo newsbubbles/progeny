@@ -21,8 +21,8 @@
   	<script type="text/javascript">
 		const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
-  		const easeLoc = 0.002, easeVel = 0.3, minDist = 10, maxVel = 2;
-  		const minRewardDist = 30, ratioPredator = 0.1;
+  		const easeLoc = 0.002, easeVel = 0.03, minDist = 10, maxVel = 1.5;
+  		const minRewardDist = 20, ratioPredator = 0.1;
   		//const deathAudio = new Audio('dead.wav');
   		const continuousSpace = false;
   		const bouncyWalls = true;
@@ -97,10 +97,10 @@
 			*/
 
   			var conf = {
-  				numCells: 90,
+  				numCells: 30,
   				dataWidth: 6,
-  				maxNeighbors: 4,
-  				neighborDistance: 800,
+  				maxNeighbors: 3,
+  				neighborDistance: 500,
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
   				initValues: [null, null, null, null, null, 1, 1],
@@ -180,6 +180,7 @@
 					//use the data[2] and data[3] as velocity vector for data[0] and data[1]
 					cell.data[0] += cell.data[2];
 					cell.data[1] += cell.data[3];
+					//cell.data[3] += 0.1;
 					window.clipcell(cell);
 				},
 				cellReward: function(cell, neighbor){
@@ -194,10 +195,11 @@
 					//console.log(d, minDist);
 					if (d > 0 && d < minDist){
 						// If the cell is "hit"
-						console.log('hit');
+						//console.log('hit', run, chase, team);
 						if (run){
 							// If Prey, lose life, or die if life is < 0
 							cell.data[5] -= 0.1;
+							console.log('hit');
 							if (cell.data[5] <= 0.0){ // DIE FOOL!
 								cell.data[0] = Math.random() * canvas.width;
 								cell.data[1] = Math.random() * canvas.height;
@@ -229,7 +231,7 @@
 				},
 				interval: 0,
   				draw: function(world){
-					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					//ctx.clearRect(0, 0, canvas.width, canvas.height);
   					world.cells.forEach(function(cell, index){
   						var predator = cell.data[4] < ratioPredator;
   						var x = Math.round(cell.data[0]);
