@@ -29,6 +29,12 @@ var conf = {
     // Most important function of all, controls what behaviors emerge
     // good to start out with some metric like k-dimensional distance
     // note: this function is only in the scope of a cell and one neighbor
+  },
+  draw: function(world){
+    // Go through all cells in the world...
+    world.cells.forEach(function(cell, index){
+      // Show each cell on a canvas or however you want to visualize the cell.data space.
+    });
   }
 };
 
