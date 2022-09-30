@@ -214,6 +214,11 @@ class World {
 		];
 	}
 
+	initMap(){
+		//k-dTree needs this map for nearest neighbor function
+		//problem was that was using an array instead
+	}
+
 	createEnv(){
 		// numStates = n * 2
 		// numActions = []
@@ -239,7 +244,7 @@ class World {
 			'world': this,
 			'env': this.env,
 			'dim': this.dataWidth,
-			'keys': this.elements,
+			'keys': this.dimTitles,
 			'afterStep': this.onCellStep,
 			'reward': this.onCalcReward,
 			'stats': this.cellStats,
@@ -270,10 +275,16 @@ class World {
 
 	step(){
 		var cellArr = [];
+		const dw = this.dataWidth;
+		const dt = this.dimTitles;
 		this.cells.forEach(function(cell, index){
-			cellArr.push(cell.data);
+			var ca = {};
+			for (var ci = 0; ci < dw; ci++){
+				ca[dt[ci]] = cell.data[ci];
+			}
+			cellArr.push(ca);
 		});
-		this.tree = new kdTree(cellArr, _.dist2d, this.dimTitles);
+		this.tree = new kdTree(cellArr, _.dist, this.dimTitles);
 		this.cells.forEach(function(cell, index){
 			cell.step();
 		});
@@ -307,7 +318,7 @@ class Cell {
 		this.world = config['world'] || null;
 
 		//Agent
-		this.brain = new RL.DQNAgent(config['env'], config['spec'] || { alpha: 0.01});
+		this.brain = new RL.DQNAgent(config['env'], config['brain'] || { alpha: 0.01});
 
 		//Neighbors links
 		this.neighbors = []
@@ -330,11 +341,40 @@ class Cell {
 		//Live cell data (state)
 		//	a map of vectors that gives amp/freq
 		this.keys = config['keys'] || [];
-		this.data = (typeof data === 'undefined') ? {}: data;
+		this.data = (typeof data === 'undefined') ? []: data;
+		this.dataMap = config['map'] || {};
+		this.initMap();
 
 		//Callbacks
 		this._afterStep = config['afterStep'] || null;
 		this._calcReward = config['reward'] || null;
+	}
+
+	initMap(){
+		for (var i = 0; i < this.data.length; i++){
+			var v = this.data[i];
+			var k = this.keys[i];
+			this.dataMap[k] = v;
+		}
+	}
+
+	agg(key, value){
+		this.data[key] += value;
+		this.dataMap[this.keys[key]] = this.data[key];
+	}
+
+	update(key, value){
+		this.data[key] = value;
+		this.dataMap[this.keys[key]] = value;
+	}
+
+	remap(m){
+		var o = [];
+		var a = this.world.dimTitles;
+		for (var i = 0; i < a.length; i++){
+			o.push(m[a[i]]);
+		}
+		return o;
 	}
 
 	link(cell){
@@ -359,7 +399,7 @@ class Cell {
 		//change s from concat n.data to only concat shared data
 		var l = this.neighbors.length;
 		if (this.dynamicNeighborhood){
-			this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
+			this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
 			l = this.neighbors.length;
 		}
 		if (l == 0) return;
@@ -368,16 +408,17 @@ class Cell {
 		//For EACH NEIGHBOR
 		for (var i = 0; i < l; i++){
 			var n = this.neighbors[i];
-			var ss = _.diff(s, this.dynamicNeighborhood ? n[0]: n);
+			var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
+			var ss = _.diff(s, m);
 			var action = this.brain.act(ss);
 			//console.log(ss, action, n);
 
-			this.performAction(action, n);
+			this.performAction(action, m);
 
 			// calculate reward from this interaction?
 			// or async calculation of reward on message reception?
 			//console.log(this.data, n);
-			var reward = this.calculateReward(n);
+			var reward = this.calculateReward(m);
 
 			// learn from reward
 			this.brain.learn(reward);

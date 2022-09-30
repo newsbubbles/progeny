@@ -3,12 +3,18 @@
   <head>
     <meta charset="utf-8" />
    	<title>Progeny: Communicative CA</title>
-   	<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
+   	<script src="rl.js"></script>
+   	<script src="kdTree.js"></script>
+   	<script src="linknodes.js"></script>
+   	<script src="pipe.js"></script>
+   	<script src="progeny.js"></script>
+   	<script src="colormap.js"></script>
+   	<!--<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/kdTree.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/linknodes.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/pipe.js"></script>
-   	<script src="progeny.js"></script>
-   	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/progeny.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>-->
    	<style type="text/css">
    		body {
    			background-color: #222;
@@ -21,10 +27,10 @@
   	<script type="text/javascript">
 			const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
-  		const easeLoc = 0.002, easeVel = 0.03, minDist = 10, maxVel = 1.5;
+  		const easeLoc = 0.002, easeVel = 0.005, minDist = 10, maxVel = 1.5;
   		const minRewardDist = 20, ratioPredator = 0.1;
-  		const numPlayers = 100;
-  		const continuousSpace = false;
+  		const numPlayers = 30;
+  		const continuousSpace = true;
   		const bouncyWalls = true;
 
   		//const deathAudio = new Audio('dead.wav');
@@ -118,8 +124,8 @@
   			var conf = {
   				numCells: numPlayers,
   				dataWidth: 6,
-  				maxNeighbors: 20,
-  				neighborDistance: 1200,
+  				maxNeighbors: 8,
+  				neighborDistance: 600,
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
   				initValues: [null, null, null, null, null, 1, 1],
@@ -138,77 +144,77 @@
 					},
 					function(cell, neighbor){
 						//Move toward neighbor
-						d = locDiff(cell.data, neighbor[0]);
+						d = locDiff(cell.data, neighbor);
 						e = vecMult(d, easeLoc);
-						cell.data[2] += e[0];
-						cell.data[3] += e[1];
+						cell.agg(2, e[0]);
+						cell.agg(3, e[1]);
 					},
 					function(cell, neighbor){
 						//Move away from neighbor
-						d = locDiff(cell.data, neighbor[0]);
+						d = locDiff(cell.data, neighbor);
 						e = vecMult(d, easeLoc);
-						cell.data[2] -= e[0];
-						cell.data[3] -= e[1];
+						cell.agg(2, -e[0]);
+						cell.agg(3, -e[1]);
 					},
 					function(cell, neighbor){
 						//Move in same direction as neighbor
-						d = velDiff(cell.data, neighbor[0]);
+						d = velDiff(cell.data, neighbor);
 						e = vecMult(d, easeVel);
-						cell.data[2] += e[0];
-						cell.data[3] += e[1];
+						cell.agg(2, e[0]);
+						cell.agg(3, e[1]);
 					},
 					function(cell, neighbor){
 						//Move in opposite direction
-						d = velDiff(cell.data, neighbor[0]);
+						d = velDiff(cell.data, neighbor);
 						e = vecMult(d, easeVel);
-						cell.data[2] -= e[0];
-						cell.data[3] -= e[1];
+						cell.agg(2, -e[0]);
+						cell.agg(3, -e[1]);
 					},
 					/* Non-relative movement */
 					function(cell, neighbor){
 						//Move up
 						d = velDiff(cell.data, [0, 0, 0, -maxVel]);
 						e = vecMult(d, easeLoc);
-						cell.data[2] += e[0];
-						cell.data[3] += e[1];
+						cell.agg(2, e[0]);
+						cell.agg(3, e[1]);
 					},
 					function(cell, neighbor){
 						//Move down
 						d = velDiff(cell.data, [0, 0, 0, +maxVel]);
 						e = vecMult(d, easeLoc);
-						cell.data[2] += e[0];
-						cell.data[3] += e[1];
+						cell.agg(2, e[0]);
+						cell.agg(3, e[1]);
 					},
 					function(cell, neighbor){
 						//Move left
 						d = velDiff(cell.data, [0, 0, -maxVel, 0]);
 						e = vecMult(d, easeLoc);
-						cell.data[2] += e[0];
-						cell.data[3] += e[1];
+						cell.agg(2, e[0]);
+						cell.agg(3, e[1]);
 					},
 					function(cell, neighbor){
 						//Move right
 						d = velDiff(cell.data, [0, 0, +maxVel, 0]);
 						e = vecMult(d, easeLoc);
-						cell.data[2] += e[0];
-						cell.data[3] += e[1];
+						cell.agg(2, e[0]);
+						cell.agg(3, e[1]);
 					},
 				],
 				cellStep: function(cell){
 					// This happens after cell walks through neighbors
 
 					//use the data[2] and data[3] as velocity vector for data[0] and data[1]
-					cell.data[0] += cell.data[2];
-					cell.data[1] += cell.data[3];
+					cell.agg(0, cell.data[2]);
+					cell.agg(1, cell.data[3]);
 					//cell.data[3] += 0.1;
 					window.clipcell(cell);
 				},
 				cellReward: function(cell, neighbor){
 					// Find 2D distance from neighbor (first two dimensions)
-					d = dist(cell.data, neighbor[0]);
+					d = dist(cell.data, neighbor);
 					// Figure out what "team" cell is on and what neighbor is.
 					var cp = cell.data[4] < ratioPredator, 
-						np = neighbor[0][4] < ratioPredator;
+						np = neighbor[4] < ratioPredator;
 					var chase = cp && !np, 
 						run = !cp && np, 
 						team = cp && np || !cp && !np;
@@ -233,7 +239,7 @@
 						}
 						if (chase){
 							// give a big reward if cell is predator and prey is dead (eaten)
-							if (neighbor[0][5] <= 0.1){
+							if (neighbor[5] <= 0.1){
 								console.log('KILL!');
 								cell.count('kills');
 								cell.count('score', 100);
@@ -250,7 +256,7 @@
 					}
 				},
 				interval: 0,
-  				draw: function(world){
+  			draw: function(world){
 					ctx.clearRect(0, 0, canvas.width, canvas.height);
   					world.cells.forEach(function(cell, index){
   						var predator = cell.data[4] < ratioPredator;
@@ -267,7 +273,7 @@
 	  						ctx.strokeStyle = '#ddd';
 	  						for (var nn = 0; nn < cell.neighbors.length; nn++){
 	  							var nv = cell.neighbors[nn];
-	  							drawLine(x, y, nv[0][0], nv[0][1]);
+	  							drawLine(x, y, nv[0].x, nv[0].y);
 	  						}
 	  					}
   						ctx.fillStyle = window.colormap[index].hex;
