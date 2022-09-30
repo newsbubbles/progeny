@@ -138,10 +138,18 @@ var _ = {
 		}
 		return o;
 	},
-	dist: function(v1, v2){
+	dist: function(v1, v2, max){
 		d = _.diff(v1, v2);
 		a = 0;
-		for (var i = 0; i < d.length; i++){
+		for (var i = 0; i < d.length && i < max; i++){
+			a += d[i] * d[i];
+		}
+		return Math.sqrt(Math.abs(a));
+	},
+	dist2d: function(v1, v2){
+		d = _.diff(v1, v2);
+		a = 0;
+		for (var i = 0; i < d.length && i < 2; i++){
 			a += d[i] * d[i];
 		}
 		return Math.sqrt(Math.abs(a));
@@ -163,6 +171,7 @@ class World {
 		this.initDimRange = config['initDimRange'] || null;
 		this.initValues = config['initValues'] || null;
 		this.dimTitles = config['dimTitles'] || null;
+		this.dimTreeIndices = config['dimTreeIndices'] || null;
 		this.neighborDistance = config['neighborDistance'] || null;
 		this.cellStats = config['stats'] || null;
 		this.dynamicNeighborhood = config['dynamicNeighborhood'] || true;
@@ -264,7 +273,7 @@ class World {
 		this.cells.forEach(function(cell, index){
 			cellArr.push(cell.data);
 		});
-		this.tree = new kdTree(cellArr, _.dist, this.dimTitles);
+		this.tree = new kdTree(cellArr, _.dist2d, this.dimTitles);
 		this.cells.forEach(function(cell, index){
 			cell.step();
 		});
@@ -348,9 +357,11 @@ class Cell {
 	step(){
 		//take an action, s = vector of max_n * 2
 		//change s from concat n.data to only concat shared data
-		if (this.dynamicNeighborhood)
-			this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
 		var l = this.neighbors.length;
+		if (this.dynamicNeighborhood){
+			this.neighbors = this.world.tree.nearest(this.data, this.maxNeighbors, this.neighborDistance);
+			l = this.neighbors.length;
+		}
 		if (l == 0) return;
 		var s = this.data;
 

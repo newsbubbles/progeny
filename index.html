@@ -7,7 +7,7 @@
    	<script src="https://newsbubbles.github.io/progeny/kdTree.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/linknodes.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/pipe.js"></script>
-   	<script src="https://newsbubbles.github.io/progeny/progeny.js"></script>
+   	<script src="progeny.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
    	<style type="text/css">
    		body {
@@ -19,13 +19,25 @@
   <body>
   	<canvas id="world"></canvas>
   	<script type="text/javascript">
-		const canvas = _.q('#world');
+			const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
   		const easeLoc = 0.002, easeVel = 0.03, minDist = 10, maxVel = 1.5;
   		const minRewardDist = 20, ratioPredator = 0.1;
-  		//const deathAudio = new Audio('dead.wav');
+  		const numPlayers = 100;
   		const continuousSpace = false;
   		const bouncyWalls = true;
+
+  		//const deathAudio = new Audio('dead.wav');
+
+  		function drawLine(x1, y1, x2, y2){
+				ctx.beginPath();
+				ctx.moveTo(x1, y1);
+				ctx.lineTo(x2, y2);
+				ctx.stroke();
+				ctx.closePath();
+  		}
+
+  		window.selected = 0;
 
   		window.clipcell = function(cell){
   			// location clipping
@@ -82,6 +94,13 @@
   			}
   			window.addEventListener('resize', resizeCanvas);
   			resizeCanvas(null);
+  			window.addEventListener('keydown', function(e){
+  				var k = e.keyCode;
+  				if (k == 39 || k == 40) window.selected += 1;
+  				if (k == 37 || k == 38) window.selected -= 1;
+  				if (window.selected < 0) window.selected = numPlayers - 1;
+  				if (window.selected >= numPlayers) window.selected = 0;
+  			});
 
   			//pipe = new Pipe()
 			//console.log(pipe.steps)
@@ -97,13 +116,14 @@
 			*/
 
   			var conf = {
-  				numCells: 30,
+  				numCells: numPlayers,
   				dataWidth: 6,
-  				maxNeighbors: 3,
-  				neighborDistance: 500,
+  				maxNeighbors: 20,
+  				neighborDistance: 1200,
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
   				initValues: [null, null, null, null, null, 1, 1],
+  				dimTreeIndices: [0, 1, 2, 3],
   				stats: {
   					'deaths': 0,
   					'kills': 0,
@@ -231,7 +251,7 @@
 				},
 				interval: 0,
   				draw: function(world){
-					//ctx.clearRect(0, 0, canvas.width, canvas.height);
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
   					world.cells.forEach(function(cell, index){
   						var predator = cell.data[4] < ratioPredator;
   						var x = Math.round(cell.data[0]);
@@ -239,19 +259,19 @@
   						var r = (predator ? 8: 5);
   						var rr = r * 2;
   						var ir = r * cell.data[5], irr = rr * cell.data[5];
+  						if (index == window.selected){
+	  						ctx.strokeStyle = '#999';
+	  						ctx.lineWidth = 0.5;
+	  						drawLine(x, 0, x, canvas.height);
+	  						drawLine(0, y, canvas.width, y);
+	  						ctx.strokeStyle = '#ddd';
+	  						for (var nn = 0; nn < cell.neighbors.length; nn++){
+	  							var nv = cell.neighbors[nn];
+	  							drawLine(x, y, nv[0][0], nv[0][1]);
+	  						}
+	  					}
   						ctx.fillStyle = window.colormap[index].hex;
   						ctx.strokeStyle = predator ? '#f00': '#0f0';
-  						/*if (cell.neighbors.length > 0){
-	  						var n = cell.neighbors[0][0];
-	  						var xn = Math.round(n[0]);
-	  						var yn = Math.round(n[1]);
-	  						ctx.strokeStyle = ctx.fillStyle;
-	  						ctx.beginPath();
-	  						ctx.moveTo(x, y);
-	  						ctx.lineTo(xn, yn);
-	  						ctx.stroke();
-	  						ctx.closePath();
-	  					}*/
   						ctx.fillRect(x - ir, y - ir, irr, irr);
   						ctx.lineWidth = 1;
   						ctx.beginPath();
