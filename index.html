@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-   	<title>Progeny: Communicative CA</title>
+   	<title>Predator and Prey Simulation - Progeny.js</title>
    	<!--<script src="rl.js"></script>
    	<script src="kdTree.js"></script>
    	<script src="linknodes.js"></script>
@@ -17,18 +17,50 @@
    	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
    	<style type="text/css">
    		body {
+   			color: #FFDDDD;
    			background-color: #222;
    			margin: 0px;
+   		}
+   		canvas {
+   			display: block;
+   		}
+   		.menu {
+   			border-radius: 0.5em;
+   			background-color: rgba(0, 0, 0, 0.65);
+   			padding: 1em;
+   			position: absolute;
+   			bottom: 1em;
+   			left: 1em;
+   			width: 15em;
+   		}
+   		#cellprev {
+   			width:20px;
+   			height: 20px;
+   			background-color: #222;
+   			border: 1px solid #F00;
+   			display: inline-block;
+   		}
+   		#cellname {
+   			font-weight: bolder;
+   			padding-left: 1em;
+   			padding-right: 1em;
+   		}
+   		#cellstats {
+   			padding-left: 50px;
+   		}
+   		#cellstats label {
+   			font-weight: bold;
    		}
    	</style>
   </head>
   <body>
   	<canvas id="world"></canvas>
+  	<div class="menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
   	<script type="text/javascript">
 			const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
   		const easeLoc = 0.002, easeVel = 0.005, minDist = 10, maxVel = 1.5;
-  		const minRewardDist = 20, ratioPredator = 0.1;
+  		const minRewardDist = 20, ratioPredator = 0.5;
   		const numPlayers = 30;
   		const continuousSpace = true;
   		const bouncyWalls = true;
@@ -44,6 +76,41 @@
   		}
 
   		window.selected = 0;
+  		function selectCell(){
+				window.world.cells.forEach(function(cell, index){
+					if (index == window.selected){
+						window.cell = cell;
+					}
+				});
+				showCell(window.cell, window.selected);
+  		}
+
+  		function showCell(cell, index){
+  			var e = _.q('#menu');
+  			var ce = _.q('#cellprev');
+  			var t = _.q('#cellname');
+  			var s = _.q('#cellstats');
+  			var strP = '';
+ 				ce.style.backgroundColor = colormap[index].hex;
+  			if (isPredator(cell)){
+  				ce.style.borderColor = '#f00';
+  				strP = 'predator';
+  			}else{
+  				ce.style.borderColor = '#0f0';
+  				strP = 'prey';
+  			}
+  			var cst = '';
+  			for (k in cell.stats){
+  				if (cell.stats.hasOwnProperty(k))
+  					cst += '<div><label>' + k + '</label>: <span>' + cell.stats[k] + '</span></div>'
+  			}
+  			t.innerHTML = 'Agent ' + index + ' <i>(' + strP + ')</i>';
+  			s.innerHTML = cst;
+  		}
+
+  		function isPredator(cell){
+  			return cell.data[4] < ratioPredator;
+  		}
 
   		window.clipcell = function(cell){
   			// location clipping
@@ -106,6 +173,12 @@
   				if (k == 37 || k == 38) window.selected -= 1;
   				if (window.selected < 0) window.selected = numPlayers - 1;
   				if (window.selected >= numPlayers) window.selected = 0;
+  				selectCell();
+  			});
+  			_.q('#cellprev').addEventListener('click', function(e){
+  				window.selected += 1;
+  				if (window.selected >= numPlayers) window.selected = 0;
+  				selectCell();
   			});
 
   			//pipe = new Pipe()
@@ -124,7 +197,7 @@
   			var conf = {
   				numCells: numPlayers,
   				dataWidth: 6,
-  				maxNeighbors: 8,
+  				maxNeighbors: 4,
   				neighborDistance: 600,
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
@@ -136,7 +209,12 @@
   					'score': 0,
   				},
   				init: function(world){
-
+  					world.cells.forEach(function(cell, index){
+	  					var predator = cell.data[4] < ratioPredator;
+	  					//if (predator){
+	  					//	cell.maxNeighbors = 3;
+	  					//}
+  					});
   				},
   				actions: [	/* This defines the action space the DQN chooses from */
 					function(cell, neighbor){
@@ -246,7 +324,11 @@
 								return 100.0;
 							}
 						}
-						points = chase ? 1.0: run ? -2.0: team && !cp ? 1.0: 0.0;
+						if (team && !cp){
+							cell.data[5] += 0.025;
+							if (cell.data[5] > 1) cell.data[5] = 1;
+						}
+						points = chase ? 1.0: run ? -2.0: team && !cp ? 2.0: 0.0;
 						cell.count('score', points);
 						return points;
 					}
@@ -296,6 +378,8 @@
   			
   			// Start the world, to stop use world.stop()
   			world.start();
+
+	  		selectCell();
 
   		});
   	</script>

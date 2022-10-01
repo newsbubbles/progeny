@@ -1,3 +1,5 @@
+// from: https://github.com/karpathy/reinforcejs
+
 var R = {}; // the Recurrent library
 
 (function(global) {

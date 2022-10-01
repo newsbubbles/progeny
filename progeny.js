@@ -386,6 +386,14 @@ class Cell {
 		this.neighbors.pop(cell);
 	}
 
+	copyBrain(cell){
+		this.brain.fromJSON(cell.brain.toJSON());
+	}
+
+	shareBrain(cell){
+		this.brain = cell.brain;
+	}
+
 	distance(neighbor){
 		var o = [], l = neighbor.data.length;
 		for (var i = 0; i < l; i++){
