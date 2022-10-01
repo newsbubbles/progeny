@@ -51,6 +51,9 @@
    		#cellstats label {
    			font-weight: bold;
    		}
+   		.sdev {
+   			color: #bbb;
+   		}
    	</style>
   </head>
   <body>
@@ -85,6 +88,33 @@
 				showCell(window.cell, window.selected);
   		}
 
+  		function stdDev(cell){
+  			var stats = cell.stats;
+  			var stot = {}, l = window.world.cells.count;
+  			var isPred = isPredator(cell);
+  			window.world.cells.forEach(function(cell, index){
+  				var isP = isPredator(cell);
+  				if (isP != isPred) return;
+  				var cst = cell.stats;
+  				for (k in cst){
+  					if (cst.hasOwnProperty(k)){
+  						v = cst[k];
+  						if (!stot.hasOwnProperty(k)) stot[k] = 0;
+  						stot[k] += v;
+  					}
+  				}
+  			});
+  			var mean = {};
+  			for (k in stot){
+  				mean[k] = stot[k] / l;
+  			}
+  			var sd = {};
+  			for (k in mean){
+  				sd[k] = cell.stats[k] - mean[k];
+  			}
+  			return sd;
+  		}
+
   		function showCell(cell, index){
   			var e = _.q('#menu');
   			var ce = _.q('#cellprev');
@@ -100,9 +130,13 @@
   				strP = 'prey';
   			}
   			var cst = '';
+  			var sd = stdDev(cell);
+  			//console.log(sd);
   			for (k in cell.stats){
-  				if (cell.stats.hasOwnProperty(k))
-  					cst += '<div><label>' + k + '</label>: <span>' + cell.stats[k] + '</span></div>'
+  				if (cell.stats.hasOwnProperty(k)){
+  					var sdev = sd[k] > 0 ? '+' + Math.round(sd[k]): Math.round(sd[k]);
+  					cst += '<div><label>' + k + '</label>: <span>' + cell.stats[k] + '</span> <i>(<span class="sdev">' + sdev + '</span>)</i></div>'
+  				}
   			}
   			t.innerHTML = 'Agent ' + index + ' <i>(' + strP + ')</i>';
   			s.innerHTML = cst;
@@ -303,7 +337,7 @@
 						if (run){
 							// If Prey, lose life, or die if life is < 0
 							cell.data[5] -= 0.1;
-							console.log('hit');
+							//console.log('hit');
 							if (cell.data[5] <= 0.0){ // DIE FOOL!
 								cell.data[0] = Math.random() * canvas.width;
 								cell.data[1] = Math.random() * canvas.height;
@@ -318,7 +352,7 @@
 						if (chase){
 							// give a big reward if cell is predator and prey is dead (eaten)
 							if (neighbor[5] <= 0.1){
-								console.log('KILL!');
+								//console.log('KILL!');
 								cell.count('kills');
 								cell.count('score', 100);
 								return 100.0;
@@ -380,6 +414,7 @@
   			world.start();
 
 	  		selectCell();
+	  		setInterval(function(){showCell(window.cell, window.selected);}, 3000);
 
   		});
   	</script>
