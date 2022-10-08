@@ -177,6 +177,9 @@ class World {
 		this.dynamicNeighborhood = config['dynamicNeighborhood'] || true;
 		this.maxNeighbors = config['maxNeighbors'] || 4;
 		this.neighborDistance = config['neighborDistance'] || 300;
+		this.useNeighbors = config['useNeighbors'] || (this.maxNeighbors > 0);
+		this.actionPerNeighbor = typeof config['actionPerNeighbor'] !== 'undefined' ? config['actionPerNeighbor']: true;
+		this.brainConfig = config['brainConfig'] || null;
 
 		//working vars
 		this.session = null;
@@ -222,7 +225,7 @@ class World {
 	createEnv(){
 		// numStates = n * 2
 		// numActions = []
-		const _n = this.dataWidth; //this.maxLinks * this.dataWidth;
+		const _n = this.actionPerNeighbor ? this.dataWidth: this.maxLinks * this.dataWidth;
 		const _m = this.actionSpace.length
 		this.env = {};
 		this.env.getNumStates = function(){ return _n; }
@@ -248,9 +251,12 @@ class World {
 			'afterStep': this.onCellStep,
 			'reward': this.onCalcReward,
 			'stats': this.cellStats,
+			'brain': this.brainConfig,
 			'neighborDistance': this.neighborDistance,
 			'maxNeighbors': this.maxNeighbors,
 			'dynamicNeighborhood': this.dynamicNeighborhood,
+			'useNeighbors': this.useNeighbors,
+			'actionPerNeighbor': this.actionPerNeighbor,
 		};
 		console.log(conf);
 		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
@@ -321,6 +327,8 @@ class Cell {
 		this.brain = new RL.DQNAgent(config['env'], config['brain'] || { alpha: 0.01});
 
 		//Neighbors links
+		this.useNeighbors = config['useNeighbors'] || true;
+		this.actionPerNeighbor = typeof config['actionPerNeighbor'] !== 'undefined' ? config['actionPerNeighbor']: true;
 		this.neighbors = []
 
 		//Configuration of cell limits like maxDims, etc.
@@ -359,7 +367,16 @@ class Cell {
 	}
 
 	agg(key, value){
+		if (isNaN(value)){
+			console.log(key, value);
+			window.world.stop();
+		}
 		this.data[key] += value;
+		this.dataMap[this.keys[key]] = this.data[key];
+	}
+
+	mult(key, value){
+		this.data[key] *= value;
 		this.dataMap[this.keys[key]] = this.data[key];
 	}
 
@@ -405,30 +422,55 @@ class Cell {
 	step(){
 		//take an action, s = vector of max_n * 2
 		//change s from concat n.data to only concat shared data
-		var l = this.neighbors.length;
-		if (this.dynamicNeighborhood){
-			this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
-			l = this.neighbors.length;
-		}
-		if (l == 0) return;
-		var s = this.data;
+		if (this.useNeighbors){
+			var l = this.neighbors.length;
+			if (this.dynamicNeighborhood){
+				this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
+				l = this.neighbors.length;
+			}
+			if (l == 0) return;
+			var s = this.data;
 
-		//For EACH NEIGHBOR
-		for (var i = 0; i < l; i++){
-			var n = this.neighbors[i];
-			var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
-			var ss = _.diff(s, m);
-			var action = this.brain.act(ss);
-			//console.log(ss, action, n);
+			//For EACH NEIGHBOR
+			if (this.actionPerNeighbor){
+				for (var i = 0; i < l; i++){
+					var n = this.neighbors[i];
+					//if (this.dynamicNeighborhood && n[1] == 0) continue;
+					var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
+					var ss = _.diff(s, m);
+					var action = this.brain.act(ss);
+					//console.log(ss, action, n);
 
-			this.performAction(action, m);
+					this.performAction(action, m);
 
-			// calculate reward from this interaction?
-			// or async calculation of reward on message reception?
-			//console.log(this.data, n);
-			var reward = this.calculateReward(m);
+					// calculate reward from this interaction?
+					// or async calculation of reward on message reception?
+					//console.log(this.data, n);
+					var reward = this.calculateReward(m);
 
-			// learn from reward
+					// learn from reward
+					this.brain.learn(reward);
+				}
+			}else{ // One vector representing diff of all neighbors
+				var vec = new Array(this.size).fill(0);
+				for (var i = 0; i < l; i++){
+					var n = this.neighbors[i];
+					var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
+					var ss = _.diff(s, m);
+					for (var ii = 0; ii < this.dim; ii++){
+						var iii = (i * this.dim) + ii;
+						vec[iii] = ss[ii];
+					}
+				}
+				var action = this.brain.act(vec);
+				this.performAction(action);
+				var reward = this.calculateReward();
+				this.brain.learn(reward);
+			}
+		}else{
+			var action = this.brain.act(this.world.state);
+			this.performAction(action);
+			var reward = this.calculateReward();
 			this.brain.learn(reward);
 		}
 		this.afterStep();

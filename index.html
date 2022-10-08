@@ -3,18 +3,18 @@
   <head>
     <meta charset="utf-8" />
    	<title>Predator and Prey Simulation - Progeny.js</title>
-   	<!--<script src="rl.js"></script>
+   	<script src="rl.js"></script>
    	<script src="kdTree.js"></script>
    	<script src="linknodes.js"></script>
    	<script src="pipe.js"></script>
    	<script src="progeny.js"></script>
-   	<script src="colormap.js"></script>-->
-   	<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
+   	<script src="colormap.js"></script>
+   	<!--<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/kdTree.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/linknodes.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/pipe.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/progeny.js"></script>
-   	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>-->
    	<style type="text/css">
    		body {
    			color: #FFDDDD;
@@ -62,11 +62,20 @@
   	<script type="text/javascript">
 			const canvas = _.q('#world');
   		const ctx = canvas.getContext('2d');
-  		const easeLoc = 0.002, easeVel = 0.005, minDist = 10, maxVel = 1.5;
-  		const minRewardDist = 20, ratioPredator = 0.5;
+  		const easeLoc = 0.0013, easeVel = 0.0058, minDist = 10, maxVel = 2.5;
+  		const friction = 0.982;
+  		const accel = 1.1, decel = 0.9;
+  		const minRewardDist = 20, ratioPredator = 0.35;
   		const numPlayers = 30;
   		const continuousSpace = true;
   		const bouncyWalls = true;
+			const epsilon_schedule = {
+				0: 0.25,
+				10000: 0.2,
+				20000: 0.1,
+				50000: 0.08,
+				100000: 0.05
+			}
 
   		//const deathAudio = new Audio('dead.wav');
 
@@ -90,7 +99,7 @@
 
   		function stdDev(cell){
   			var stats = cell.stats;
-  			var stot = {}, l = window.world.cells.count;
+  			var stot = {}, l = 0;
   			var isPred = isPredator(cell);
   			window.world.cells.forEach(function(cell, index){
   				var isP = isPredator(cell);
@@ -103,15 +112,20 @@
   						stot[k] += v;
   					}
   				}
+					l += 1;
   			});
+  			//console.log(stot);
   			var mean = {};
   			for (k in stot){
   				mean[k] = stot[k] / l;
   			}
+  			//console.log(l);
+  			//console.log(mean);
   			var sd = {};
   			for (k in mean){
   				sd[k] = cell.stats[k] - mean[k];
   			}
+  			//console.log(sd);
   			return sd;
   		}
 
@@ -231,8 +245,15 @@
   			var conf = {
   				numCells: numPlayers,
   				dataWidth: 6,
-  				maxNeighbors: 4,
-  				neighborDistance: 600,
+  				maxNeighbors: 8,
+  				neighborDistance: 300,
+  				brainConfig: {
+  					alpha: 0.01,
+  					epsilon: 0.1,
+  					num_hidden_units: 100,
+  					experience_add_every: 50,
+  					experience_size: 5000,
+  				},
   				dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'attack', 'share', 'f', 'g'],
   				initDimRange: [canvas.width, canvas.height, 0, 0, 1, 1, 1, 1, 1, 180],
   				initValues: [null, null, null, null, null, 1, 1],
@@ -243,137 +264,159 @@
   					'score': 0,
   				},
   				init: function(world){
-  					world.cells.forEach(function(cell, index){
+  					/*world.cells.forEach(function(cell, index){
 	  					var predator = cell.data[4] < ratioPredator;
-	  					//if (predator){
-	  					//	cell.maxNeighbors = 3;
-	  					//}
-  					});
+	  					if (predator){
+	  						cell.maxNeighbors = 5;
+	  					}
+  					});*/
   				},
   				actions: [	/* This defines the action space the DQN chooses from */
-					function(cell, neighbor){
-						//Do Nothing...
-					},
-					function(cell, neighbor){
-						//Move toward neighbor
-						d = locDiff(cell.data, neighbor);
-						e = vecMult(d, easeLoc);
-						cell.agg(2, e[0]);
-						cell.agg(3, e[1]);
-					},
-					function(cell, neighbor){
-						//Move away from neighbor
-						d = locDiff(cell.data, neighbor);
-						e = vecMult(d, easeLoc);
-						cell.agg(2, -e[0]);
-						cell.agg(3, -e[1]);
-					},
-					function(cell, neighbor){
-						//Move in same direction as neighbor
-						d = velDiff(cell.data, neighbor);
-						e = vecMult(d, easeVel);
-						cell.agg(2, e[0]);
-						cell.agg(3, e[1]);
-					},
-					function(cell, neighbor){
-						//Move in opposite direction
-						d = velDiff(cell.data, neighbor);
-						e = vecMult(d, easeVel);
-						cell.agg(2, -e[0]);
-						cell.agg(3, -e[1]);
-					},
-					/* Non-relative movement */
-					function(cell, neighbor){
-						//Move up
-						d = velDiff(cell.data, [0, 0, 0, -maxVel]);
-						e = vecMult(d, easeLoc);
-						cell.agg(2, e[0]);
-						cell.agg(3, e[1]);
-					},
-					function(cell, neighbor){
-						//Move down
-						d = velDiff(cell.data, [0, 0, 0, +maxVel]);
-						e = vecMult(d, easeLoc);
-						cell.agg(2, e[0]);
-						cell.agg(3, e[1]);
-					},
-					function(cell, neighbor){
-						//Move left
-						d = velDiff(cell.data, [0, 0, -maxVel, 0]);
-						e = vecMult(d, easeLoc);
-						cell.agg(2, e[0]);
-						cell.agg(3, e[1]);
-					},
-					function(cell, neighbor){
-						//Move right
-						d = velDiff(cell.data, [0, 0, +maxVel, 0]);
-						e = vecMult(d, easeLoc);
-						cell.agg(2, e[0]);
-						cell.agg(3, e[1]);
-					},
-				],
-				cellStep: function(cell){
-					// This happens after cell walks through neighbors
+						function(cell, neighbor){
+							//Do Nothing...
+						},
+						function(cell, neighbor){
+							//Move toward neighbor
+							d = locDiff(cell.data, neighbor);
+							e = vecMult(d, easeLoc * cell.data[6]);
+							cell.agg(2, e[0]);
+							cell.agg(3, e[1]);
+						},
+						function(cell, neighbor){
+							//Move away from neighbor
+							d = locDiff(cell.data, neighbor);
+							e = vecMult(d, easeLoc * cell.data[6]);
+							cell.agg(2, -e[0]);
+							cell.agg(3, -e[1]);
+						},
+						function(cell, neighbor){
+							//Move in same direction as neighbor
+							d = velDiff(cell.data, neighbor);
+							e = vecMult(d, easeVel);
+							cell.agg(2, e[0]);
+							cell.agg(3, e[1]);
+						},
+						function(cell, neighbor){
+							//Move in opposite direction
+							d = velDiff(cell.data, neighbor);
+							e = vecMult(d, easeVel);
+							cell.agg(2, -e[0]);
+							cell.agg(3, -e[1]);
+						},
+						/* Non-relative movement */
+						function(cell, neighbor){
+							//Move up
+							d = velDiff(cell.data, [0, 0, 0, -maxVel]);
+							e = vecMult(d, easeLoc * cell.data[6]);
+							cell.agg(2, e[0]);
+							cell.agg(3, e[1]);
+						},
+						function(cell, neighbor){
+							//Move down
+							d = velDiff(cell.data, [0, 0, 0, +maxVel]);
+							e = vecMult(d, easeLoc * cell.data[6]);
+							cell.agg(2, e[0]);
+							cell.agg(3, e[1]);
+						},
+						function(cell, neighbor){
+							//Move left
+							d = velDiff(cell.data, [0, 0, -maxVel, 0]);
+							e = vecMult(d, easeLoc * cell.data[6]);
+							cell.agg(2, e[0]);
+							cell.agg(3, e[1]);
+						},
+						function(cell, neighbor){
+							//Move right
+							d = velDiff(cell.data, [0, 0, +maxVel, 0]);
+							e = vecMult(d, easeLoc * cell.data[6]);
+							cell.agg(2, e[0]);
+							cell.agg(3, e[1]);
+						},
+						/*function(cell){
+							//Accelerate
+							cell.mult(2, accel);
+							cell.mult(3, accel);
+						},
+						function(cell){
+							//Decelerate
+							cell.mult(2, decel);
+							cell.mult(3, decel);
+						},*/
+					],
+					cellStep: function(cell){
+						// This happens after cell walks through neighbors
 
-					//use the data[2] and data[3] as velocity vector for data[0] and data[1]
-					cell.agg(0, cell.data[2]);
-					cell.agg(1, cell.data[3]);
-					//cell.data[3] += 0.1;
-					window.clipcell(cell);
-				},
-				cellReward: function(cell, neighbor){
-					// Find 2D distance from neighbor (first two dimensions)
-					d = dist(cell.data, neighbor);
-					// Figure out what "team" cell is on and what neighbor is.
-					var cp = cell.data[4] < ratioPredator, 
-						np = neighbor[4] < ratioPredator;
-					var chase = cp && !np, 
-						run = !cp && np, 
-						team = cp && np || !cp && !np;
-					//console.log(d, minDist);
-					if (d > 0 && d < minDist){
-						// If the cell is "hit"
-						//console.log('hit', run, chase, team);
-						if (run){
-							// If Prey, lose life, or die if life is < 0
-							cell.data[5] -= 0.1;
-							//console.log('hit');
-							if (cell.data[5] <= 0.0){ // DIE FOOL!
-								cell.data[0] = Math.random() * canvas.width;
-								cell.data[1] = Math.random() * canvas.height;
-								cell.data[2] = 0;
-								cell.data[3] = 0;
-								cell.data[5] = 1.0;
-								cell.count('deaths');
-								cell.count('score', -100);
-								return -100.0;
+						// Perform epsilon schedule
+						if (cell.world.frame % 1000 == 0){
+							if (epsilon_schedule.hasOwnProperty(cell.world.frame)){
+								cell.brain.epsilon = epsilon_schedule[cell.world.frame];
 							}
 						}
-						if (chase){
-							// give a big reward if cell is predator and prey is dead (eaten)
-							if (neighbor[5] <= 0.1){
-								//console.log('KILL!');
-								cell.count('kills');
-								cell.count('score', 100);
-								return 100.0;
+
+						//use the data[2] and data[3] as velocity vector for data[0] and data[1]
+						cell.agg(0, cell.data[2]);
+						cell.agg(1, cell.data[3]);
+
+						//multiply velocity times global friction coefficient
+						cell.mult(2, friction);
+						cell.mult(3, friction);
+						//cell.data[3] += 0.1;
+
+						window.clipcell(cell);
+					},
+					cellReward: function(cell, neighbor){
+						// Find 2D distance from neighbor (first two dimensions)
+						d = dist(cell.data, neighbor);
+						// Figure out what "team" cell is on and what neighbor is.
+						var cp = cell.data[4] < ratioPredator, 
+							np = neighbor[4] < ratioPredator;
+						var chase = cp && !np, 
+							run = !cp && np, 
+							team = cp && np || !cp && !np;
+						//console.log(d, minDist);
+						if (d > 0 && d < minDist){
+							// If the cell is "hit"
+							//console.log('hit', run, chase, team);
+							if (run){
+								// If Prey, lose life, or die if life is < 0
+								cell.data[5] -= 0.1;
+								//console.log('hit');
+								if (cell.data[5] <= 0.0){ // DIE FOOL!
+									cell.data[0] = Math.random() * canvas.width;
+									cell.data[1] = Math.random() * canvas.height;
+									cell.data[2] = 0;
+									cell.data[3] = 0;
+									cell.data[5] = 1.0;
+									cell.count('deaths');
+									cell.count('score', -100);
+									return -100.0;
+								}
 							}
+							if (chase){
+								// give a big reward if cell is predator and prey is dead (eaten)
+								if (neighbor[5] <= 0.1){
+									//console.log('KILL!');
+									cell.count('kills');
+									cell.count('score', 100);
+									return 100.0;
+								}
+							}
+							if (team && !cp){
+								cell.data[5] += 0.025;
+								if (cell.data[5] > 1) cell.data[5] = 1;
+							}
+							points = chase ? 1.0: run ? -2.0: team && !cp ? 2.0: 0.0;
+							cell.count('score', points);
+							return points;
 						}
-						if (team && !cp){
-							cell.data[5] += 0.025;
-							if (cell.data[5] > 1) cell.data[5] = 1;
+						if (team && !cp && d < minRewardDist && d > 0){
+							cell.count('score');
+							return 1.0;
 						}
-						points = chase ? 1.0: run ? -2.0: team && !cp ? 2.0: 0.0;
-						cell.count('score', points);
-						return points;
-					}
-					if (team && !cp && d < minRewardDist && d > 0){
-						cell.count('score');
-						return 1.0;
-					}
-				},
-				interval: 0,
-  			draw: function(world){
-					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					},
+					interval: 0,
+	  			draw: function(world){
+						ctx.clearRect(0, 0, canvas.width, canvas.height);
   					world.cells.forEach(function(cell, index){
   						var predator = cell.data[4] < ratioPredator;
   						var x = Math.round(cell.data[0]);

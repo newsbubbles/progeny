@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+   	<title>Predator and Prey Simulation - Progeny.js</title>
+   	<script src="rl.js"></script>
+   	<script src="kdTree.js"></script>
+   	<script src="linknodes.js"></script>
+   	<script src="pipe.js"></script>
+   	<script src="progeny.js"></script>
+   	<script src="colormap.js"></script>
+   	<script src="Three.js"></script>
+   	<!--<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/kdTree.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/linknodes.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/pipe.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/progeny.js"></script>
+   	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
+   	<script src="https://unpkg.com/three/build/three.module.js"></script>-->
+   	<style type="text/css">
+   		body {
+   			color: #FFDDDD;
+   			background-color: #222;
+   			margin: 0px;
+   		}
+   		canvas {
+   			display: block;
+   		}
+   		.menu {
+   			border-radius: 0.5em;
+   			background-color: rgba(0, 0, 0, 0.65);
+   			padding: 1em;
+   			position: absolute;
+   			bottom: 1em;
+   			left: 1em;
+   			width: 15em;
+   		}
+   		#cellprev {
+   			width:20px;
+   			height: 20px;
+   			background-color: #222;
+   			border: 1px solid #F00;
+   			display: inline-block;
+   		}
+   		#cellname {
+   			font-weight: bolder;
+   			padding-left: 1em;
+   			padding-right: 1em;
+   		}
+   		#cellstats {
+   			padding-left: 50px;
+   		}
+   		#cellstats label {
+   			font-weight: bold;
+   		}
+   		.sdev {
+   			color: #bbb;
+   		}
+   	</style>
+  </head>
+  <body>
+  	<!--<canvas id="world"></canvas>-->
+  	<div class="menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
+  	<script src="3d.js"></script>
+  	<script src="scene.js"></script>
+  </body>
+</html>
