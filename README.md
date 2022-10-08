@@ -1,6 +1,14 @@
 # progeny.js
 An Emergent Computing Playground for DQN CAs
 
+## Demos
+
+### [Predator and Prey 2D](https://newsbubbles.github.io/progeny)
+This simulation takes the progeny.js library and makes it simulate a predator and prey scenario in a continuous 2D space.  Predators must learn how to hunt efficiently while prey must learn how to eveade predators.  This is a simple context for using the library in a setting where Deep Q Agents must be driven to gain a sense of self preservation.  Use the keyboard arrow keys to change agents or click on the agent in the menu on the bottom left.
+
+### [Predator and Prey 3D](https://newsbubbles.github.io/progeny/3d.html)
+This simulation is the exact same one as the 2D simulation except I used Three.js to add two more dimensions to the cell data: (Z and Z-Velocity).  The simulation is set to follow the selected agent by default (vomit warning?) and you can make the camera stop/start following the selected agent by pressing `spacebar`.
+
 ## Usage
 ```HTML
 ...
@@ -63,5 +71,4 @@ world.start();
 * `draw` - Callback function for drawing the world on a canvas
 * `cellReward` - The reward function for each cell (controls how they learn)
 * `cellStep` - Callback function happening at the end of each step for cell
-
-For a Demo where Progeny is used to make Predator / Prey simulation check out: https://newsbubbles.github.io/progeny ... and look at index.html source code to see how that demo is setup. 
+* `brainConfig` - This is a configuration object for the rl.js DQNAgent class. See demos for more settings.
