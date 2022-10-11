@@ -1,14 +1,14 @@
-const easeLoc = 0.00008, 
-	easeVel = 0.00022, 
+const easeLoc = 0.04, 
+	easeVel = 0.02, 
 	minDist = 10, 
-	maxVel = 0.8;
+	maxVel = 0.4;
 const friction = 0.992;
 const accel = 1.1, decel = 0.9;
 const minRewardDist = 20, ratioPredator = 0.25;
-const numPlayers = 90;
+const numPlayers = 30;
 const continuousSpace = true;
 const bouncyWalls = true;
-var viewFPS = true;
+var viewFPS = false;
 var camHist = [], camHistLength = 90;
 var chlr = 1 / camHistLength;
 const epsilon_schedule = {
@@ -18,12 +18,21 @@ const epsilon_schedule = {
 	50000: 0.08,
 	100000: 0.05
 }
-var wsize = 600;
+var wsize = 200;
 var ws2 = wsize / 2;
-const limits = {
+var limits = {
 	x: [-ws2, ws2],
 	y: [0, wsize],
 	z: [-ws2, ws2]
+}
+
+function setWorldSize(size){
+	var ws2 = size / 2;
+	limits = {
+		x: [-ws2, ws2],
+		y: [0, size],
+		z: [-ws2, ws2]
+	};
 }
 
 //const deathAudio = new Audio('dead.wav');
@@ -227,14 +236,14 @@ window.addEventListener('load', function(e){
 var conf = {
 	numCells: numPlayers,
 	dataWidth: 9,
-	maxNeighbors: 10,
+	maxNeighbors: 6,
 	neighborDistance: 500,
 	brainConfig: {
 		alpha: 0.01,
 		epsilon: 0.1,
-		num_hidden_units: 128,
-		experience_add_every: 50,
-		experience_size: 5000,
+		num_hidden_units: 500,
+		experience_add_every: 25,
+		experience_size: 2000,
 	},
 	dimTitles: ['x', 'y', 'vx', 'vy', 'type', 'life', 'energy', 'z', 'vz', '', 'g'],
 	initDimRange: [limits.x[1], limits.y[1], 0, 0, 1, 1, 1, limits.z[1], 0],
@@ -259,32 +268,40 @@ var conf = {
 		},
 		function(cell, neighbor){
 			//Move toward neighbor
-			d = locDiff(cell.data, neighbor);
-			e = vecMult(d, easeLoc * cell.data[6]);
+			var d = locDiff(cell.data, neighbor);
+			var et = new THREE.Vector3(d[0], d[1], d[2]);
+			var net = et.normalize();
+			var e = vecMult([net.x, net.y, net.z], easeLoc);
 			cell.agg(2, e[0]);
 			cell.agg(3, e[1]);
 			cell.agg(8, e[2]);
 		},
 		function(cell, neighbor){
 			//Move away from neighbor
-			d = locDiff(cell.data, neighbor);
-			e = vecMult(d, easeLoc * cell.data[6]);
+			var d = locDiff(cell.data, neighbor);
+			var et = new THREE.Vector3(d[0], d[1], d[2]);
+			var net = et.normalize();
+			var e = vecMult([net.x, net.y, net.z], easeLoc);
 			cell.agg(2, -e[0]);
 			cell.agg(3, -e[1]);
 			cell.agg(8, -e[2]);
 		},
 		function(cell, neighbor){
 			//Move in same direction as neighbor
-			d = velDiff(cell.data, neighbor);
-			e = vecMult(d, easeVel);
+			var d = velDiff(cell.data, neighbor);
+			var et = new THREE.Vector3(d[0], d[1], d[2]);
+			var net = et.normalize();
+			var e = vecMult([net.x, net.y, net.z], easeVel);
 			cell.agg(2, e[0]);
 			cell.agg(3, e[1]);
 			cell.agg(8, e[2]);
 		},
 		function(cell, neighbor){
 			//Move in opposite direction
-			d = velDiff(cell.data, neighbor);
-			e = vecMult(d, easeVel);
+			var d = velDiff(cell.data, neighbor);
+			var et = new THREE.Vector3(d[0], d[1], d[2]);
+			var net = et.normalize();
+			var e = vecMult([net.x, net.y, net.z], easeVel);
 			cell.agg(2, -e[0]);
 			cell.agg(3, -e[1]);
 			cell.agg(8, -e[2]);
@@ -322,15 +339,17 @@ var conf = {
 			cell.agg(3, e[1]);
 			cell.agg(8, e[2]);
 		},*/
-		/*function(cell){
+		/*sfunction(cell){
 			//Accelerate
 			cell.mult(2, accel);
 			cell.mult(3, accel);
+			cell.mult(8, accel);
 		},
 		function(cell){
 			//Decelerate
 			cell.mult(2, decel);
 			cell.mult(3, decel);
+			cell.mult(8, decel);
 		},*/
 	],
 	cellStep: function(cell){
