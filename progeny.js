@@ -165,6 +165,13 @@ var _ = {
 		}
 		return o;
 	},
+	avg: function(v1, v2){
+		var l = v1.length, o = [];
+		for (var i = 0; i < l; i++){
+			o.push((v1[i] + v2[i]) * 0.5);
+		}
+		return o;
+	},
 	dist: function(v1, v2, max){
 		if (typeof max === 'undefined') max = v1.length;
 		d = _.diff(v1, v2);
@@ -311,7 +318,7 @@ class World {
 	}
 
 	add(data){
-		var conf = this.getConf();
+		var conf = this.getCellConf();
 		var c = new Cell(conf, data);
 		this.cells.push(c);
 		if (this.onAddCell != null){

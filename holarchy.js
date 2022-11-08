@@ -18,7 +18,7 @@ function newRun(){
 	var drawCol = HIDE.colormap[runIndex].hex;
 	var conf = {
 		interval: 0,
-		numCells: 5,
+		numCells: 4,
 		duplicateLevels: 3,
 		dataWidth: 2,
 		dimTitles: ['x', 'y'],
@@ -218,7 +218,7 @@ function tap(refBPM){
 	if (tapHist.length > 0){
 		var last = dn - tapHist[tapHist.length - 1];
 		var thresh = (1 / refBPM * 60000) * thLen;
-		//console.log(last, thresh);
+		console.log(last, thresh);
 		if (last > thresh){
 			tapHist = [];
 		}
@@ -230,14 +230,15 @@ function tap(refBPM){
 		var diff = thLen - tapHist.length;
 		for (var i = 1; i < tapHist.length; i++){
 			var delta = tapHist[i] - tapHist[i - 1];
+			//console.log(delta);
 			deltas += delta;
 		}
 		var trust = tapHist.length / thLen;
 		//console.log(trust);
 		if (trust > tt){
-			var a = deltas / tapHist.length;
-			var o = a / 4;
-			//console.log(o);
+			var a = deltas / (tapHist.length - 1);
+			var o = 60000 / a;
+			//console.log("res", a, o);
 			return o;
 		}
 	}
