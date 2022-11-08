@@ -420,6 +420,16 @@ class World {
 		if (this.frame >= this.maxAge && this.maxAge > 0) this.stop();
 	}
 
+	pass(func){
+		//const f = func;
+		this.cells.forEach(function(cell, index){
+			func(cell, index);
+			if (cell.hasBody()){
+				cell.body.pass(func);
+			}
+		});
+	}
+
 	drawAll(){
 		// Draws the entire branch of worlds trunk first
 		if (this.onDraw != null){
@@ -621,8 +631,8 @@ class Cell {
 		if (this.subWorld){
 			this.subWorld.head = this;
 			this.subWorld.level = this.world.level + 1;
-			if (this.subWorld.duplicateLevels > 0)
-				this.subWorld.duplicateLevels = this.world.duplicateLevels - 1;
+			//if (this.subWorld.duplicateLevels > 0)
+			this.subWorld.duplicateLevels = this.world.duplicateLevels - 1;
 			this.body = new World(this.subWorld);
 
 		}

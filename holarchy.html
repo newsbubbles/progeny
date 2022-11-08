@@ -69,7 +69,7 @@
   <body>
   	<canvas id="world"></canvas>
   	<div class="agent-menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
-    <div class="action-menu"><button id="dance" onclick="dance(_.q('#tempo').value / _.q('#beat').value)">Dance</button> BPM:<input id="tempo" value="130" size="3"> Beats:<input id="beat" size="3" value="2"></div>
+    <div class="action-menu"><button id="dance" onclick="dance(_.q('#tempo').value / _.q('#beat').value)">Dance</button> BPM:<input id="tempo" value="130" size="3"> Beats:<input id="beat" size="3" value="2"><div><input type="checkbox" value="1" onclick="HIDE.trace=this.checked"> Trace</div></div>
     <script src="hide.js"></script>
   	<script src="holarchy.js"></script>
   </body>

@@ -18,14 +18,14 @@ function newRun(){
 	var drawCol = HIDE.colormap[runIndex].hex;
 	var conf = {
 		interval: 0,
-		numCells: 8,
+		numCells: 6,
 		dataWidth: 2,
 		dimTitles: ['x', 'y'],
 		initDimRange: [5, 5],
 		maxAge: 0,
 		stochasticUpdates: false,
 		dynamicNeighborhood: false,
-		duplicateLevels: 2,
+		duplicateLevels: 3,
 		data: {
 			radius: 120,
 			rotate: 0,
@@ -106,6 +106,7 @@ function newRun(){
 			cell.velocities = n;
 		},
 		draw: function(world){
+			//if (world.level < 3) return;
 			var center = [HIDE.screen.centerX, HIDE.screen.centerY];
 			var parent = world.head;
 			while (parent != null){
@@ -163,8 +164,8 @@ HIDE.util.keyMap.add(38, function(){
   HIDE.world._hide.cell.data[1] += -20;
 });
 
-var _rrad = [80, 180, 180];
-var _rrot = [0.025, 0.025, 0.025];
+var _rrad = [120, 180, 120, 80, 180];
+var _rrot = [0.025, 0.025, 0.025, 0.025, 0.025];
 
 function getRands(){
 	var rad = [];
@@ -182,16 +183,10 @@ function beat(){
 	var rad = r[0], rot = r[1];
 	world.data.radius = rad[0];
 	world.data.rotate = rot[0];
-	world.cells.forEach(function(cell, index){ 
+	world.pass(function(cell, index){
 		if (cell.hasBody()){
-			cell.body.data.radius = rad[1];
-			cell.body.data.rotate = rot[1];
-			cell.body.cells.forEach(function(cell, index){
-				if (cell.hasBody()){
-					cell.body.data.radius = rad[2];
-					cell.body.data.rotate = rot[2];
-				}
-			});
+			cell.body.data.radius = rad[cell.body.level];
+			cell.body.data.rotate = rot[cell.body.level];
 		}
 	});
 }
