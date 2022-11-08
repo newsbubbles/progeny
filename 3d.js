@@ -238,6 +238,7 @@ var conf = {
 	dataWidth: 9,
 	maxNeighbors: 6,
 	neighborDistance: 500,
+	stochasticUpdates: true,
 	brainConfig: {
 		alpha: 0.01,
 		epsilon: 0.1,

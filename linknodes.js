@@ -20,9 +20,13 @@ var LL = function(data){
 	o.pop = function(){
 		this.lastNode.next = null;
 		this.node = this.lastNode;
+		this.count--;
 	};
 	o.shift = function(){
+		var o = this.origNode;
 		this.origNode = this.origNode.next;
+		this.count--;
+		return o;
 	};
 
 	o.next = function(){

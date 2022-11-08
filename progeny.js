@@ -131,6 +131,13 @@ var _ = {
 		}
 		return o;
 	},
+	add: function(v1, v2){
+		var l = v2.length, o = [];
+		for (var i = 0; i < l; i++){
+			o.push(v1[i] + v2[i]);
+		}
+		return o;
+	},
 	diff: function(v1, v2){
 		var l = v2.length, o = [];
 		for (var i = 0; i < l; i++){
@@ -138,13 +145,41 @@ var _ = {
 		}
 		return o;
 	},
+	mult: function(v1, t){
+		//if (t > 1) console.log('HIGH T:', t);
+		var l = v1.length, o = [];
+		for (var i = 0; i < l; i++){
+			o.push(v1[i] * t);
+		}
+		return o;
+	},
+	norm: function(v1, n){
+		var l = v1.length, o = [], m = 0;
+		for (var i = 0; i < l; i++){
+			var a = Math.abs(v1[i]);
+			m = a > m ? a: m;
+		}
+		if (m == 0) return v1;
+		for (var i = 0; i < l; i++){
+			o.push((v1[i] / m) * n);
+		}
+		return o;
+	},
 	dist: function(v1, v2, max){
+		if (typeof max === 'undefined') max = v1.length;
 		d = _.diff(v1, v2);
 		a = 0;
 		for (var i = 0; i < d.length && i < max; i++){
 			a += d[i] * d[i];
 		}
 		return Math.sqrt(Math.abs(a));
+	},
+	vectDist: function(d, max){
+		var a = 0;
+		for (var i = 0; i < d.length && i < max; i++){
+			a += d[i] * d[i];
+		}
+		return Math.sqrt(a);
 	},
 	dist2d: function(v1, v2){
 		d = _.diff(v1, v2);
@@ -160,9 +195,9 @@ var _ = {
 class World {
 	constructor(config){
 		this.config = config;
-		this.rows = config['rows'] || 80;
-		this.cols = config['cols'] || 60;
-		this.size = this.rows * this.cols;
+		this.head = config['head'] || null;
+		this.level = config.hasOwnProperty('level') ? config['level']: 0;
+		this.subWorld = config['subWorld'] || null;
 		this.maxLinks = config['maxLinks'] || 4;
 		this.dataWidth = config['dataWidth'] || 2;
 		this.numCells = config['numCells'] || 10;
@@ -172,14 +207,32 @@ class World {
 		this.initValues = config['initValues'] || null;
 		this.dimTitles = config['dimTitles'] || null;
 		this.dimTreeIndices = config['dimTreeIndices'] || null;
+		this.dimVelConsume = config['dimVelConsume']
 		this.neighborDistance = config['neighborDistance'] || null;
 		this.cellStats = config['stats'] || null;
-		this.dynamicNeighborhood = config['dynamicNeighborhood'] || true;
+		this.stochasticUpdates = config['stochasticUpdates'] || false;
+		this.dynamicNeighborhood = typeof config['dynamicNeighborhood'] !== 'undefined' ? config['dynamicNeighborhood']: true;
 		this.maxNeighbors = config['maxNeighbors'] || 4;
 		this.neighborDistance = config['neighborDistance'] || 300;
 		this.useNeighbors = config['useNeighbors'] || (this.maxNeighbors > 0);
 		this.actionPerNeighbor = typeof config['actionPerNeighbor'] !== 'undefined' ? config['actionPerNeighbor']: true;
 		this.brainConfig = config['brainConfig'] || null;
+		this.useDQNAgent = config.hasOwnProperty('brainConfig');
+		this.proxyLearning = config['proxyLearning'] || true;
+		this.maxAge = config['maxAge'] || 0;
+		this.duplicateLevels = config['duplicateLevels'] || 0;
+		this.inlineDrawing = config.hasOwnProperty('inlineDrawing') ? config['inlineDrawing']: true;
+
+		// world / body level parameters or data
+		this.sharedData = config.hasOwnProperty('sharedData') ? config['sharedData']: false
+		this.data = null;
+		if (config.hasOwnProperty('data')){
+			if (this.sharedData){
+				this.data = config['data'];
+			}else{
+				this.data = JSON.parse(JSON.stringify(config['data']));
+			}
+		}
 
 		//working vars
 		this.session = null;
@@ -187,12 +240,23 @@ class World {
 		this.elements = [];
 		this.frame = 0;
 		this.tree = null;
+		this.startTime = Date.now();
 
 		//callbacks
 		this.onInit = config['init'] || null;
+		this.onAddCell = config['cellAdd'] || null;
 		this.onDraw = config['draw'] || null;
+		this.onCellBeforeStep = config['cellBeforeStep'] || null;
 		this.onCellStep = config['cellStep'] || null;
 		this.onCalcReward = config['cellReward'] || null;
+		this.onLinkCells = config['link'] || null;
+		this.onStop = config['stop'] || null;
+
+		//Duplicate the Levels if called for
+		if (this.subWorld == null && this.duplicateLevels > 0){
+			//config['duplicateLevels'] -= 1;
+			this.subWorld = config;
+		}
 		
 		//Define the action space 
 		//	acts on a cell only
@@ -220,6 +284,11 @@ class World {
 	initMap(){
 		//k-dTree needs this map for nearest neighbor function
 		//problem was that was using an array instead
+		//replaced by link callback, BUT could in the future use conv kernels
+	}
+
+	init(){
+		if (this.onInit != null) this.onInit(this);
 	}
 
 	createEnv(){
@@ -233,9 +302,51 @@ class World {
 	}
 
 	createElements(){
+		// randomly populate the elemental dimension indices of this system
+		// eventually this will use Global Dimensional Index
+		// and will be specifiable by holarchs
 		for (var i = 0; i < this.dataWidth; i++){
 			this.elements.push(Math.round(Math.random() * 65536) - 32768);
 		}
+	}
+
+	add(data){
+		var conf = this.getConf();
+		var c = new Cell(conf, data);
+		this.cells.push(c);
+		if (this.onAddCell != null){
+			this.onAddCell(this, c);
+		}
+		this.relink();
+	}
+
+	shift(){
+		this.cells.shift();
+		this.relink();
+	}
+
+	getCellConf(world){
+		if (typeof world === 'undefined') world = this;
+		var conf = {
+			world: world,
+			subWorld: world.subWorld,
+			env: world.env,
+			dim: world.dataWidth,
+			keys: world.dimTitles,
+			beforeStep: world.onCellBeforeStep,
+			afterStep: world.onCellStep,
+			reward: world.onCalcReward,
+			stats: world.cellStats,
+			useDQNAgent: world.useDQNAgent,
+			brain: world.brainConfig,
+			neighborDistance: world.neighborDistance,
+			maxNeighbors: world.maxNeighbors,
+			dynamicNeighborhood: world.dynamicNeighborhood,
+			useNeighbors: world.useNeighbors,
+			actionPerNeighbor: world.actionPerNeighbor,
+			consumers: world.dimVelConsume,
+		};
+		return conf;
 	}
 
 	generate(){
@@ -243,21 +354,7 @@ class World {
 		this.createEnv();
 		if (this.elements.length == 0) 
 			this.createElements();
-		var conf = {
-			'world': this,
-			'env': this.env,
-			'dim': this.dataWidth,
-			'keys': this.dimTitles,
-			'afterStep': this.onCellStep,
-			'reward': this.onCalcReward,
-			'stats': this.cellStats,
-			'brain': this.brainConfig,
-			'neighborDistance': this.neighborDistance,
-			'maxNeighbors': this.maxNeighbors,
-			'dynamicNeighborhood': this.dynamicNeighborhood,
-			'useNeighbors': this.useNeighbors,
-			'actionPerNeighbor': this.actionPerNeighbor,
-		};
+		var conf = this.getCellConf();
 		console.log(conf);
 		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
 		var use_iv = this.initValues != null
@@ -271,48 +368,177 @@ class World {
 			}
 			var cell = new Cell(conf, data);
 
-			//TODO: Replace simple static linking like this
-			if (this.cells.count > 0)
-				cell.link(this.cells.node.d);
-
 			this.cells.push(cell);
 		}
+		if (this.subWorld != null){
+			this.cells.forEach(function(cell, index){
+				cell.generateBody();
+			});
+		}
+		if (this.onLinkCells != null) this.onLinkCells(this);
+	}
+
+	relink(){
+		this.cells.forEach(function(cell, index){
+			cell.neighbors = [];
+		});
+		if (this.onLinkCells != null) this.onLinkCells(this);
 	}
 
 	step(){
 		var cellArr = [];
+		//console.log('frame ' + this.frame);
 		const dw = this.dataWidth;
 		const dt = this.dimTitles;
+		const su = this.stochasticUpdates;
+		if (this.dynamicNeighborhood){
+			this.cells.forEach(function(cell, index){
+				var ca = {};
+				for (var ci = 0; ci < dw; ci++){
+					ca[dt[ci]] = cell.data[ci];
+				}
+				cellArr.push(ca);
+			});
+			this.tree = new kdTree(cellArr, _.dist, this.dimTitles);
+		}
 		this.cells.forEach(function(cell, index){
-			var ca = {};
-			for (var ci = 0; ci < dw; ci++){
-				ca[dt[ci]] = cell.data[ci];
+			var skip = su ? Math.random() < 0.5: false;
+			if (skip){
+				console.log('skip');
 			}
-			cellArr.push(ca);
+			cell.step(skip);
 		});
-		this.tree = new kdTree(cellArr, _.dist, this.dimTitles);
-		this.cells.forEach(function(cell, index){
-			cell.step();
-		});
+		// This needs to be placed perhaps on its own own thread, just accessed.
+		// Inline drawing means L(nmax) is first 
+		if (this.inlineDrawing){
+			if (this.onDraw != null){
+				this.onDraw(this);
+			}
+		}
+		if (this.proxyLearning) this.learnProxy();
+		this.frame += 1;
+		if (this.frame >= this.maxAge && this.maxAge > 0) this.stop();
+	}
+
+	drawAll(){
+		// Draws the entire branch of worlds trunk first
 		if (this.onDraw != null){
 			this.onDraw(this);
 		}
-		this.frame += 1;
+		this.cells.forEach(function(cell, index){
+			if (cell.hasBody()){
+				cell.body.drawAll();
+			}
+		});
+	}
+
+	getState(){
+		// returns a vector with ALL cell states
+		var state = [];
+		this.cells.forEach(function(cell, index){
+			state.push(...cell.data);
+		});
+		return state;
+	}
+
+	learnProxy(){
+		// Proxy learner learns from the state vector of all cells
+		var state = this.getState();
+		if (this.frame == 100){
+			console.log(state);
+		}
 	}
 
 	start(){
-		if (this.onInit != null) this.onInit(this);
-		this.session = setInterval(function(){window.world.step()}, this.interval);
+		console.log('world started');
+		this.init();
+		this.session = setInterval(function(){ HIDE.world.step(); }, this.interval);
 	}
 
 	stop(){
+		console.log('world stopped.');
 		clearInterval(this.session);
 		this.session = null;
+		if (this.onStop != null) this.onStop(this);
 	}
 
-	layout(type){
-		var conf = this.config;
+	getFPS(){
+		var tn = Date.now();
+		var e = (tn - this.startTime) / 1000;
+		return this.frame / e;
+	}
 
+	getSize(){
+		var s = 1;
+		this.cells.forEach(function(cell, index){
+			if (cell.hasBody()){
+				s += cell.body.getSize();
+			}else{
+				s += 1;
+			}
+		});
+		return s;
+	}
+
+	hasHead(){
+		return this.head != null;
+	}
+
+	_inspect(func){
+		// if a function is passed, o.f is output as return value, world as input
+		var o = {
+			level: this.level,
+			head: this.hasHead() ? this.head.data: null,
+			parameters: this.data,
+			paramShared: this.sharedData,
+			duplicate: this.duplicateLevels,
+			count: this.cells.count,
+		};
+		if (typeof func === 'function'){
+			func(this, o);
+		}
+		o.children = [];
+		return o;
+	}
+
+	inspect(func){
+		// Show the structure / branch schemata
+		var v = this._inspect(func);
+		if (v.count > 0){
+			this.cells.forEach(function(cell, index){
+				if (cell.hasBody()){
+					v.children.push(cell.body.inspect(func));
+				}
+			});
+		}
+		return v;
+	}
+
+	query(data, values){
+		// data is the data to be selected
+		// values are cell matching conditions
+		// values can be null, specific value, function, or a 2 item array for range
+		var o = [];
+		var noval = (typeof values === 'undefined');
+		this.cells.forEach(function(cell, index){
+			var dl = data.length;
+			var matches = [], mnum = 0;
+			var dout = [];
+			for (var di = 0; di < dl; di++){
+				var d = data[di], c = values[di];
+				var v = cell.data[d];
+				var match = false;
+				if (c == null || noval) match = true;
+				else if (typeof c === 'object') match = c.length == 2 ? v >= c[0] && v < c[1]: false;
+				else if (typeof c === 'function') match = c(v);
+				else match = v == c;
+				if (match) mnum += 1;
+				matches.push(match);
+				dout.push(v);
+			}
+			if (mnum > 0) o.push([index, dout, cell]);
+		});
+		return o;
 	}
 }
 
@@ -321,10 +547,18 @@ class Cell {
 
 	constructor(config, data){
 		//World
+		// points to actual parent world
 		this.world = config['world'] || null;
+		// subWorld points to a configuration to generate a world for the body of the cell
+		//  it can be iterative in the idea that the config for subWorld may also include subWorld
+		this.subWorld = config.hasOwnProperty('subWorld') ? config['subWorld']: null;
+		// body points to the actual generated subWorld that is the world of the cells generated wherein
+		//  if body is given by config, 
+		this.body = config.hasOwnProperty('body') ? config['body']: null;
 
 		//Agent
-		this.brain = new RL.DQNAgent(config['env'], config['brain'] || { alpha: 0.01});
+		this.useDQNAgent = config['useDQNAgent'];
+		this.brain = this.useDQNAgent ? config['DQNAgent'] || new RL.DQNAgent(config['env'], config['brain'] || { alpha: 0.01}): null;
 
 		//Neighbors links
 		this.useNeighbors = config['useNeighbors'] || true;
@@ -336,7 +570,7 @@ class Cell {
 		this.dim = config['dim'] || 10;
 		this.maxNeighbors = config['maxNeighbors'] || 4;
 		this.neighborDistance = config['neighborDistance'] || 300;
-		this.dynamicNeighborhood = config['dynamicNeighborhood'] || true;
+		this.dynamicNeighborhood = typeof config['dynamicNeighborhood'] !== 'undefined' ? config['dynamicNeighborhood']: true;
 		this.shape = [this.dim, this.maxNeighbors];
 		this.size = this.dim * this.maxNeighbors;
 
@@ -348,14 +582,24 @@ class Cell {
 
 		//Live cell data (state)
 		//	a map of vectors that gives amp/freq
+		//  TODO: change so that arrays (data, velocities, init range, init values) becomes an array of maps 
+		this.frame = 0;
 		this.keys = config['keys'] || [];
 		this.data = (typeof data === 'undefined') ? []: data;
+		this.velocities = config.velocities || new Array(data.length).fill(0);
+		this.consumers = config.consumers || new Array(data.length).fill(0);
 		this.dataMap = config['map'] || {};
+		this.learning = true;
 		this.initMap();
 
 		//Callbacks
+		this._eachNeighbor = config['eachNeighbor'] || null;
+		this._beforeStep = config['beforeStep'] || null;
 		this._afterStep = config['afterStep'] || null;
 		this._calcReward = config['reward'] || null;
+
+		//Body instantiation
+		if (this.body == null) this.initBody();
 	}
 
 	initMap(){
@@ -366,13 +610,58 @@ class Cell {
 		}
 	}
 
+	hasBody(){
+		return this.body != null;
+	}
+
+	initBody(){
+		// CAUTION: Performs world init in depth-first order
+		// 	this can lead to :( ... reference looping? yeah something like that
+		//  uses reflection basically
+		if (this.subWorld){
+			this.subWorld.head = this;
+			this.subWorld.level = this.world.level + 1;
+			if (this.subWorld.duplicateLevels > 0)
+				this.subWorld.duplicateLevels = this.world.duplicateLevels - 1;
+			this.body = new World(this.subWorld);
+
+		}
+	}
+
+	generateBody(){
+		if (this.hasBody()){
+			this.body.generate();
+			this.body.init();
+		}
+	}
+
+	buffer(key, value){
+		this.velocities[key] += value;
+		this.consumers[key] = 1;
+	}
+
+	buff(key, value){
+		this.buffer(key, value);
+	}
+
 	agg(key, value){
+		if (typeof key === 'object'){
+			for (var i = 0; i < key.length; i++){
+				if (isNaN(key[i])){
+					console.log(i, key[i]);
+					this.world.stop();
+					return;
+				}
+				this.velocities[i] += key[i];
+			}
+			return;
+		}
 		if (isNaN(value)){
 			console.log(key, value);
-			window.world.stop();
+			this.world.stop();
+			return;
 		}
-		this.data[key] += value;
-		this.dataMap[this.keys[key]] = this.data[key];
+		this.velocities[key] += value;
 	}
 
 	mult(key, value){
@@ -419,66 +708,97 @@ class Cell {
 		return o;
 	}
 
-	step(){
+	step(skip){
 		//take an action, s = vector of max_n * 2
 		//change s from concat n.data to only concat shared data
-		if (this.useNeighbors){
-			var l = this.neighbors.length;
-			if (this.dynamicNeighborhood){
-				this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
-				l = this.neighbors.length;
-			}
-			if (l == 0) return;
-			var s = this.data;
+		this.beforeStep();
+		if (this.hasBody()){
+			this.body.step();
+		}
+		if (!skip){
+			// Run all sub cells first
+			if (this.useDQNAgent){
+				if (this.useNeighbors){
+					var l = this.neighbors.length;
+					if (this.dynamicNeighborhood){
+						this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
+						l = this.neighbors.length;
+					}
+					if (l == 0) return;
+					var s = this.data;
 
-			//For EACH NEIGHBOR
-			if (this.actionPerNeighbor){
+					//For EACH NEIGHBOR
+					if (this.actionPerNeighbor){
+						for (var i = 0; i < l; i++){
+							var n = this.neighbors[i];
+							//if (this.dynamicNeighborhood && n[1] == 0) continue;
+							var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
+							var ss = _.diff(s, m);
+							var action = this.brain.act(ss);
+							//console.log(ss, action, n);
+
+							this.performAction(action, m, i);
+
+							// calculate reward from this interaction?
+							// or async calculation of reward on message reception?
+							//console.log(this.data, n);
+							if (this.learning){
+								var reward = this.calculateReward(m);
+
+								// learn from reward
+								this.brain.learn(reward);
+							}
+						}
+					}else{ // One vector representing diff of all neighbors
+						var vec = new Array(this.size).fill(0);
+						for (var i = 0; i < l; i++){
+							var n = this.neighbors[i];
+							var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
+							var ss = _.diff(s, m);
+							for (var ii = 0; ii < this.dim; ii++){
+								var iii = (i * this.dim) + ii;
+								vec[iii] = ss[ii];
+							}
+						}
+						var action = this.brain.act(vec);
+						this.performAction(action);
+						if (this.learning){
+							var reward = this.calculateReward();
+							this.brain.learn(reward);
+						}
+					}
+				}else{
+					var action = this.brain.act(this.world.state);
+					this.performAction(action);
+					if (this.learning){
+						var reward = this.calculateReward();
+						this.brain.learn(reward);
+					}
+				}
+			}else{
+				// Non-DQN agent cell step per neighbor
+				var l = this.neighbors.length;
+				if (this.dynamicNeighborhood){
+					this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
+					l = this.neighbors.length;
+				}
+				if (l == 0) return;
 				for (var i = 0; i < l; i++){
 					var n = this.neighbors[i];
 					//if (this.dynamicNeighborhood && n[1] == 0) continue;
 					var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
-					var ss = _.diff(s, m);
-					var action = this.brain.act(ss);
-					//console.log(ss, action, n);
-
-					this.performAction(action, m);
-
-					// calculate reward from this interaction?
-					// or async calculation of reward on message reception?
-					//console.log(this.data, n);
-					var reward = this.calculateReward(m);
-
-					// learn from reward
-					this.brain.learn(reward);
+					this.performAction(0, m, i);
 				}
-			}else{ // One vector representing diff of all neighbors
-				var vec = new Array(this.size).fill(0);
-				for (var i = 0; i < l; i++){
-					var n = this.neighbors[i];
-					var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
-					var ss = _.diff(s, m);
-					for (var ii = 0; ii < this.dim; ii++){
-						var iii = (i * this.dim) + ii;
-						vec[iii] = ss[ii];
-					}
-				}
-				var action = this.brain.act(vec);
-				this.performAction(action);
-				var reward = this.calculateReward();
-				this.brain.learn(reward);
 			}
 		}else{
-			var action = this.brain.act(this.world.state);
-			this.performAction(action);
-			var reward = this.calculateReward();
-			this.brain.learn(reward);
+			//console.log('skipped');
 		}
 		this.afterStep();
 	}
 
-	performAction(action, neighbor){
+	performAction(action, neighbor, index){
 		if (this.world == null) return 0.0;
-		return this.world.actionSpace[action](this, neighbor);
+		return this.world.actionSpace[action](this, neighbor, index);
 	}
 
 	calculateReward(neighbor){
@@ -494,9 +814,27 @@ class Cell {
 		this.stats[stat] += n;
 	}
 
+	beforeStep(){
+		if (this._beforeStep != null)
+			this._beforeStep(this);
+	}
+
 	afterStep(){
 		if (this._afterStep != null)
 			this._afterStep(this);
+		this.velUpdate();
+	}
+
+	velUpdate(){
+		var l = this.data.length;
+		for (var i = 0; i < l; i++){
+			var v = this.velocities[i];
+			if (v != 0){
+				this.data[i] += v;
+				if (this.consumers[i] == 1) this.velocities[i] = 0;
+				this.dataMap[this.keys[i]] = this.data[i];
+			}
+		}
 	}
 
 	// Receive input and do something with it

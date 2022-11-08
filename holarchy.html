@@ -2,21 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-   	<title>Predator and Prey Simulation - Progeny.js</title>
+   	<title>Rule Following Holarchies - Progeny.js</title>
    	<script src="rl.js"></script>
    	<script src="kdTree.js"></script>
    	<script src="linknodes.js"></script>
    	<script src="pipe.js"></script>
    	<script src="progeny.js"></script>
    	<script src="colormap.js"></script>
-   	<script src="Three.js"></script>
    	<!--<script src="https://newsbubbles.github.io/progeny/rl.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/kdTree.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/linknodes.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/pipe.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/progeny.js"></script>
    	<script src="https://newsbubbles.github.io/progeny/colormap.js"></script>
-   	<script src="https://newsbubbles.github.io/progeny/Three.js"></script>
     -->
    	<style type="text/css">
    		body {
@@ -27,7 +25,7 @@
    		canvas {
    			display: block;
    		}
-   		.menu {
+   		.agent-menu {
    			border-radius: 0.5em;
    			background-color: rgba(0, 0, 0, 0.65);
    			padding: 1em;
@@ -36,6 +34,15 @@
    			left: 1em;
    			width: 15em;
    		}
+      .action-menu {
+        border-radius: 0.5em;
+        background-color: rgba(0, 0, 0, 0.65);
+        padding: 1em;
+        position: absolute;
+        bottom: 1em;
+        right: 1em;
+        width: 15em;
+      }
    		#cellprev {
    			width:20px;
    			height: 20px;
@@ -60,9 +67,10 @@
    	</style>
   </head>
   <body>
-  	<!--<canvas id="world"></canvas>-->
-  	<div class="menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
-  	<script src="3d.js"></script>
-  	<script src="scene.js"></script>
+  	<canvas id="world"></canvas>
+  	<div class="agent-menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
+    <div class="action-menu"><button id="dance" onclick="dance(_.q('#tempo').value / _.q('#beat').value)">Dance</button> BPM:<input id="tempo" value="130" size="3"> Beats:<input id="beat" size="3" value="2"></div>
+    <script src="hide.js"></script>
+  	<script src="holarchy.js"></script>
   </body>
 </html>
