@@ -18,14 +18,14 @@ function newRun(){
 	var drawCol = HIDE.colormap[runIndex].hex;
 	var conf = {
 		interval: 0,
-		numCells: 6,
+		numCells: 5,
+		duplicateLevels: 3,
 		dataWidth: 2,
 		dimTitles: ['x', 'y'],
 		initDimRange: [5, 5],
 		maxAge: 0,
 		stochasticUpdates: false,
 		dynamicNeighborhood: false,
-		duplicateLevels: 3,
 		data: {
 			radius: 120,
 			rotate: 0,
@@ -106,7 +106,7 @@ function newRun(){
 			cell.velocities = n;
 		},
 		draw: function(world){
-			//if (world.level < 3) return;
+			if (world.level < HIDE.render.filter.level) return;
 			var center = [HIDE.screen.centerX, HIDE.screen.centerY];
 			var parent = world.head;
 			while (parent != null){
@@ -118,33 +118,39 @@ function newRun(){
 			var t = world.cells.lastNode.next.d;
 			var irr = 10, ir = 5;
 			world.cells.forEach(function(cell, index){
+				var drawSelected = HIDE.world._hide.selected == index && !HIDE.trace
 				if (t != null){
 					// Radial lines
-					ctx.strokeStyle = '#666';
-					//if (!HIDE.trace) HIDE.util.drawLine(center[0], center[1], center[0] + cell.data[0], center[1] + cell.data[1]);
-					
+					if (HIDE.render.opt.radial){
+						ctx.strokeStyle = '#666';
+						if (!HIDE.trace) HIDE.util.drawLine(center[0], center[1], center[0] + cell.data[0], center[1] + cell.data[1]);
+					}
+
 					// Circumference lines
 					ctx.strokeStyle = HIDE.colormap[index].hex;
-					HIDE.util.drawLine(
-						center[0] + t.data[0],
-						center[1] + t.data[1],
-						center[0] + cell.data[0],
-						center[1] + cell.data[1]
-					);
-					if (HIDE.world == world){
-					if (HIDE.world._hide.selected == index && !HIDE.trace){
-							ctx.beginPath();
-							ctx.rect(center[0] + cell.data[0] - ir - 1, center[1] + cell.data[1] - ir - 1, irr + 2, irr + 2);
-							ctx.stroke();
-						}
+					if (HIDE.render.opt.surface){
+						HIDE.util.drawLine(
+							center[0] + t.data[0],
+							center[1] + t.data[1],
+							center[0] + cell.data[0],
+							center[1] + cell.data[1]
+						);
+					}
+					var isWorld = HIDE.world == world;
+					if (drawSelected && isWorld || HIDE.render.opt.cells){
+						ctx.beginPath();
+						ctx.rect(center[0] + cell.data[0] - ir - 1, center[1] + cell.data[1] - ir - 1, irr + 2, irr + 2);
+						ctx.stroke();
 					}
 				}
 				t = cell;			
 			});
 			
 			// Red squared on body centers
-			ctx.fillStyle = 'red';
-			//ctx.fillRect(center[0] - ir, center[1] - ir, irr, irr);
+			if (HIDE.render.opt.worldSelector && world == HIDE.world){
+				ctx.fillStyle = 'red';
+				ctx.fillRect(center[0] - ir, center[1] - ir, irr, irr);
+			}
 		},
 		//stop: newRun,
 	};
@@ -155,16 +161,23 @@ function newRun(){
 	runIndex++;
 }
 
+HIDE.render.opt = {
+	radial: false,
+	surface: true,
+	cells: false,
+	worldSelector: false,
+};
+
 newRun();
 
 // Some extra sloppy key mapping to be moved...
 
-HIDE.util.keyMap.add(38, function(){
+/*HIDE.util.keyMap.add(38, function(){
   HIDE.world._hide.cell.data[0] += 0;
   HIDE.world._hide.cell.data[1] += -20;
-});
+});*/
 
-var _rrad = [120, 180, 120, 80, 180];
+var _rrad = [180, 180, 180, 180, 180];
 var _rrot = [0.025, 0.025, 0.025, 0.025, 0.025];
 
 function getRands(){
@@ -195,8 +208,56 @@ function beat(){
 // controls: Tap, manual beat tapper as well, trace toggle, params: (radius, rotation), dance button (randomizes or given pattern on tempo)
 //	speed up, slow down, pause
 // MIDI mapping capability for MIDI controllers of all controls
-function dance(tempo){
-	if (typeof tempo === 'undefined') tempo = 130;
+var tapHist = [], thLen = 16;
+function tap(refBPM){
+	var tt = 0.6;
+	var dn = Date.now();
+	// clear history if more then bpm reference * thLen has passed
+	// 120
+	//console.log('taphis len:', tapHist.length);
+	if (tapHist.length > 0){
+		var last = dn - tapHist[tapHist.length - 1];
+		var thresh = (1 / refBPM * 60000) * thLen;
+		//console.log(last, thresh);
+		if (last > thresh){
+			tapHist = [];
+		}
+	}
+	tapHist.push(dn);
+	if (tapHist.length > 1){
+		if (tapHist.length > thLen) tapHist.shift();
+		var deltas = 0;
+		var diff = thLen - tapHist.length;
+		for (var i = 1; i < tapHist.length; i++){
+			var delta = tapHist[i] - tapHist[i - 1];
+			deltas += delta;
+		}
+		var trust = tapHist.length / thLen;
+		//console.log(trust);
+		if (trust > tt){
+			var a = deltas / tapHist.length;
+			var o = a / 4;
+			//console.log(o);
+			return o;
+		}
+	}
+	return null;
+}
+
+function dance(bpm, beats){
+	var t = tap(bpm);
+	if (typeof bpm === 'undefined'){
+		bpm = 130;
+		beats = 2;
+	}
+	if (t != null){
+		//var tdiff = (t - bpm) / bpm;
+		//if (tdiff > 0.01 && t > 0 && t < 500){
+			bpm = t;
+			_.q('#tempo').value = bpm;
+		//}
+	}
+	var tempo = beats == 0 ? 0: bpm / beats;
 	var ms = Math.floor(60000 / tempo);
 	//console.log(ms);
 	clearInterval(window.dancer);

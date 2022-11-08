@@ -37,6 +37,22 @@ const HIDE = {
 			window.world = HIDE.world;
 		}
 	},
+	next: function(){
+		var cell = HIDE.world._hide.cell;
+		if (cell != null){
+			if (cell.hasBody()){
+				HIDE.select(cell.body);
+			}
+		}
+	},
+	prev: function(){
+		var world = HIDE.world;
+		if (world != null){
+			if (world.hasHead()){
+				HIDE.select(world.head.world);
+			}
+		}
+	},
 	boot: function(world){
 		HIDE.push(world);
 		HIDE.world.generate();
@@ -122,6 +138,14 @@ const HIDE = {
 		},
 		hasKeyMap: function(k){
 			return HIDE.util.keyMap.hasOwnProperty(k);
+		},
+	},
+	render: {
+		filter: {
+			level: 0,
+		},
+		opt: {
+
 		},
 	},
 	screen: {

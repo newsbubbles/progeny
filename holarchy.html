@@ -21,6 +21,7 @@
    			color: #FFDDDD;
    			background-color: #222;
    			margin: 0px;
+        font-family: sans-serif;
    		}
    		canvas {
    			display: block;
@@ -64,12 +65,35 @@
    		.sdev {
    			color: #bbb;
    		}
+      button {
+        background-color: #065ab5;
+        border-radius: 0.5em;
+        color: #fff;
+        font-weight: bold;
+        padding: 0.4em;
+        border: 1px solid #eee;
+      }
+      input {
+        background-color: #222;
+        border-radius: 0.4em;
+        padding: 0.4em;
+        border: 2px solid #F3F;
+        color: #eee;
+      }
    	</style>
   </head>
   <body>
   	<canvas id="world"></canvas>
   	<div class="agent-menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
-    <div class="action-menu"><button id="dance" onclick="dance(_.q('#tempo').value / _.q('#beat').value)">Dance</button> BPM:<input id="tempo" value="130" size="3"> Beats:<input id="beat" size="3" value="2"><div><input type="checkbox" value="1" onclick="HIDE.trace=this.checked"> Trace</div></div>
+    <div class="action-menu">
+      <button id="dance" onclick="dance(_.q('#tempo').value, _.q('#beat').value)">Dance</button>&nbsp;<small>BPM:</small><input id="tempo" value="130" size="3">&nbsp;<small>Beat:</small><input id="beat" size="2" value="2">
+      <div style="margin-top: 0.8em;">
+        <input type="checkbox" onclick="HIDE.trace=this.checked"> Trace 
+        <input type="checkbox" checked  onclick="HIDE.render.opt.surface=this.checked"> surf
+        <input type="checkbox" onclick="HIDE.render.opt.cells=this.checked"> cell
+        <input type="checkbox" onclick="HIDE.render.opt.radial=this.checked"> rad
+      </div>
+    </div>
     <script src="hide.js"></script>
   	<script src="holarchy.js"></script>
   </body>
