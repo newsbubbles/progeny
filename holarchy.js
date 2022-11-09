@@ -18,7 +18,8 @@ function newRun(){
 	var drawCol = HIDE.colormap[runIndex].hex;
 	var conf = {
 		interval: 0,
-		numCells: 4,
+		numCells: 6,
+		skipBody: 2,
 		duplicateLevels: 3,
 		dataWidth: 2,
 		dimTitles: ['x', 'y'],
@@ -218,7 +219,7 @@ function tap(refBPM){
 	if (tapHist.length > 0){
 		var last = dn - tapHist[tapHist.length - 1];
 		var thresh = (1 / refBPM * 60000) * thLen;
-		console.log(last, thresh);
+		//console.log(last, thresh);
 		if (last > thresh){
 			tapHist = [];
 		}

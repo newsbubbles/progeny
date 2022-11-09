@@ -228,6 +228,7 @@ class World {
 		this.proxyLearning = config['proxyLearning'] || true;
 		this.maxAge = config['maxAge'] || 0;
 		this.duplicateLevels = config['duplicateLevels'] || 0;
+		this.skipBody = config['skipBody'] || 0;
 		this.inlineDrawing = config.hasOwnProperty('inlineDrawing') ? config['inlineDrawing']: true;
 
 		// world / body level parameters or data
@@ -362,7 +363,7 @@ class World {
 		if (this.elements.length == 0) 
 			this.createElements();
 		var conf = this.getCellConf();
-		console.log(conf);
+		//console.log(conf);
 		var use_dr = (this.initDimRange != null) ? this.initDimRange: false;
 		var use_iv = this.initValues != null
 		for (var i = 0; i < this.numCells; i++){
@@ -379,7 +380,9 @@ class World {
 		}
 		if (this.subWorld != null){
 			this.cells.forEach(function(cell, index){
-				cell.generateBody();
+				console.log(index, cell.world.skipBody, index % cell.world.skipBody);
+				//if (index % cell.world.skipBody == 0)
+					cell.generateBody();
 			});
 		}
 		if (this.onLinkCells != null) this.onLinkCells(this);
