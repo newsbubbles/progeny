@@ -266,27 +266,12 @@ class World {
 			this.subWorld = config;
 		}
 		
-		//Define the action space 
-		//	acts on a cell only
-		//	neighbor is just kdTree nearest neighbor result
-		this.actionSpace = config['actions'] || [
-			function(cell, neighbor){
-				//Do Nothing...
-				cell.data[0] -= 1;
-			},
-			function(cell, neighbor){
-				//Send Neighbor a message
-				cell.data[0] += 1;
-			},
-			function(cell, neighbor){
-				//Do Nothing...
-				cell.data[1] += 1;
-			},
-			function(cell, neighbor){
-				//Do Nothing...
-				cell.data[1] -= 1;
-			},
-		];
+		//Define the action space for RL
+		//	neighbor is nearest neighbor result
+		this.actionSpace = config['actions'] || [];
+		//Define rule space for non-RL
+		//  neigborhood
+		this.ruleSpace = config['rules'] || [];
 	}
 
 	initMap(){
@@ -431,7 +416,7 @@ class World {
 	}
 
 	pass(func){
-		//const f = func;
+		// Passes any per-cell function down through all sub-worlds
 		this.cells.forEach(function(cell, index){
 			func(cell, index);
 			if (cell.hasBody()){
@@ -577,7 +562,7 @@ class Cell {
 		this.body = config.hasOwnProperty('body') ? config['body']: null;
 
 		//Agent
-		this.useDQNAgent = config['useDQNAgent'];
+		this.useDQNAgent = config['useDQNAgent'] || config['DQNAgent'] || config['brain'];
 		this.brain = this.useDQNAgent ? config['DQNAgent'] || new RL.DQNAgent(config['env'], config['brain'] || { alpha: 0.01}): null;
 
 		//Neighbors links
@@ -736,8 +721,24 @@ class Cell {
 			this.body.step();
 		}
 		if (!skip){
-			// Run all sub cells first
-			if (this.useDQNAgent){
+			// Rule following first if any
+			if (this.hasRules() && this.useNeighbors){
+				// Non-DQN agent cell step per neighbor
+				var l = this.neighbors.length;
+				if (this.dynamicNeighborhood){
+					this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
+					l = this.neighbors.length;
+				}
+				if (l == 0) return;
+				for (var i = 0; i < l; i++){
+					var n = this.neighbors[i];
+					//if (this.dynamicNeighborhood && n[1] == 0) continue;
+					var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
+					this.performRule(0, m, i);
+				}
+			}
+			// Agent based actions if any
+			if (this.useDQNAgent && this.hasActions()){
 				if (this.useNeighbors){
 					var l = this.neighbors.length;
 					if (this.dynamicNeighborhood){
@@ -795,20 +796,6 @@ class Cell {
 						this.brain.learn(reward);
 					}
 				}
-			}else{
-				// Non-DQN agent cell step per neighbor
-				var l = this.neighbors.length;
-				if (this.dynamicNeighborhood){
-					this.neighbors = this.world.tree.nearest(this.dataMap, this.maxNeighbors, this.neighborDistance);
-					l = this.neighbors.length;
-				}
-				if (l == 0) return;
-				for (var i = 0; i < l; i++){
-					var n = this.neighbors[i];
-					//if (this.dynamicNeighborhood && n[1] == 0) continue;
-					var m = this.dynamicNeighborhood ? this.remap(n[0]): n;
-					this.performAction(0, m, i);
-				}
 			}
 		}else{
 			//console.log('skipped');
@@ -816,9 +803,30 @@ class Cell {
 		this.afterStep();
 	}
 
+	hasWorld(){
+		return this.world != null;
+	}
+
+	hasActions(){
+		if (this.hasWorld()){
+			return this.world.actionSpace.length > 0;
+		}
+	}
+
+	hasRules(){
+		if (this.hasWorld()){
+			return this.world.ruleSpace.length > 0;
+		}
+	}
+
 	performAction(action, neighbor, index){
-		if (this.world == null) return 0.0;
+		if (!this.hasWorld()) return 0.0;
 		return this.world.actionSpace[action](this, neighbor, index);
+	}
+
+	performRule(rule, neighbor, index){
+		if (!this.hasWorld()) return 0.0;
+		return this.world.ruleSpace[rule](this, neighbor, index);
 	}
 
 	calculateReward(neighbor){

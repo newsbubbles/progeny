@@ -71,7 +71,7 @@ function newRun(){
 		cellAdd: function(world, cell){
 
 		},
-		actions: [	/* This defines the action space the DQN chooses from OR some vector function */
+		rules: [	/* This defines the rule space for non-RL agents */
 			function(cell, neighbor, index){
 				// Get difference vector from neighbor
 				var diff = _.diff(cell.data, neighbor.data);
