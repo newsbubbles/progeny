@@ -311,6 +311,7 @@ class World {
 			this.onAddCell(this, c);
 		}
 		this.relink();
+		return c;
 	}
 
 	shift(){

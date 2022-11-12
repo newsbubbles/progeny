@@ -131,7 +131,7 @@ const HIDE = {
 				cst += '<div><label>' + k + '</label>: <span>' + cell.stats[k] + '</span> <i>(<span class="sdev">' + sdev + '</span>)</i></div>'
 			}
 		}
-		t.innerHTML = 'Agent ' + index + ' ';
+		t.innerHTML = 'Agent ' + cell.world.level + '.' + index + ' ';
 		s.innerHTML = cst;
 	},
 	util: {
@@ -143,11 +143,22 @@ const HIDE = {
 			ctx.closePath();
 		},
 		keyMap: {
-			39: function(){
+			40: function(){ // Down
+				var cell = HIDE.world._hide.cell;
+				if (cell.hasBody()){
+					HIDE.select(cell.body);
+				}
+			},
+			39: function(){ // Right
 				HIDE.world._hide.selected += 1;
 				if (HIDE.world._hide.selected >= HIDE.world.cells.count) HIDE.world._hide.selected = 0;
 			},
-			37: function(){
+			38: function(){ // Up
+				if (HIDE.world.hasHead()){
+					HIDE.select(HIDE.world.head.world);
+				}
+			},
+			37: function(){ // Left
 				HIDE.world._hide.selected -= 1;
 				if (HIDE.world._hide.selected < 0) HIDE.world._hide.selected = HIDE.world.cells.count - 1;
 			},

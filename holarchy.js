@@ -5,16 +5,18 @@ const ease = 0.1;
 const radialEase = 0.2;
 
 var runIndex = 0;
-var vertices = 6;
-var levels = 3;
+var vertices = 5;
+var levels = 2;
 
-function addVertex(){
-	var world = HIDE.world;
-	world.cells.reset();
-	var f = world.cells.origNode.d.data;
+function addVertex(world){
+	var n = world.cells.origNode.d;
+	var d = n._lastDist;
+	var f = n.data;
 	var l = world.cells.lastNode.next.d.data;
 	var a = _.avg(f, l);
-	world.add(a);
+	var c = world.add(a);
+	c.generateBody();
+	c._lastDist = d;
 }
 
 function newRun(){
@@ -87,11 +89,13 @@ function newRun(){
 				}
 
 				// Try to make the same distance as other/last neighbor
-				var d = _.vectDist(diff, 2);
-				var r = 1 - (cell._lastDist / d);
-				if (cell._lastDist != 0){
-					var m = _.mult(diff, r * ease);
-					cell.agg(m);
+				if (cell._lastDist != null){
+					var d = _.vectDist(diff, 2);
+					var r = 1 - (cell._lastDist / d);
+					if (cell._lastDist != 0){
+						var m = _.mult(diff, r * ease);
+						cell.agg(m);
+					}
 				}
 				cell._lastDist = d;
 
@@ -122,40 +126,43 @@ function newRun(){
 
 
 			ctx.strokeStyle = drawCol;
-			var t = world.cells.lastNode.next.d;
-			var irr = 10, ir = 5;
-			world.cells.forEach(function(cell, index){
-				var drawSelected = HIDE.world._hide.selected == index && !HIDE.trace
-				if (t != null){
-					// Final location in global coordinate space view
-					var f = _.add(center, cell.data);
-					var fo = _.add(world.data.offset, f);
 
-					// Radial lines
-					if (HIDE.render.opt.radial){
-						ctx.strokeStyle = '#666';
-						if (!HIDE.trace) HIDE.util.drawLine(center[0], center[1], f[0], f[1]);
-					}
+			if (world.cells.count > 0){
+				var t = world.cells.lastNode.next.d;
+				var irr = 10, ir = 5;
+				world.cells.forEach(function(cell, index){
+					var drawSelected = HIDE.world._hide.selected == index && !HIDE.trace
+					if (t != null){
+						// Final location in global coordinate space view
+						var f = _.add(center, cell.data);
+						var fo = _.add(world.data.offset, f);
 
-					// Circumference lines
-					ctx.strokeStyle = HIDE.colormap[index].hex;
-					if (HIDE.render.opt.surface){
-						HIDE.util.drawLine(
-							center[0] + t.data[0],
-							center[1] + t.data[1],
-							center[0] + cell.data[0],
-							center[1] + cell.data[1]
-						);
+						// Radial lines
+						if (HIDE.render.opt.radial){
+							ctx.strokeStyle = '#666';
+							if (!HIDE.trace) HIDE.util.drawLine(center[0], center[1], f[0], f[1]);
+						}
+
+						// Circumference lines
+						ctx.strokeStyle = HIDE.colormap[index].hex;
+						if (HIDE.render.opt.surface){
+							HIDE.util.drawLine(
+								center[0] + t.data[0],
+								center[1] + t.data[1],
+								center[0] + cell.data[0],
+								center[1] + cell.data[1]
+							);
+						}
+						var isWorld = HIDE.world == world;
+						if (drawSelected && isWorld || HIDE.render.opt.cells){
+							ctx.beginPath();
+							ctx.rect(center[0] + cell.data[0] - ir - 1, center[1] + cell.data[1] - ir - 1, irr + 2, irr + 2);
+							ctx.stroke();
+						}
 					}
-					var isWorld = HIDE.world == world;
-					if (drawSelected && isWorld || HIDE.render.opt.cells){
-						ctx.beginPath();
-						ctx.rect(center[0] + cell.data[0] - ir - 1, center[1] + cell.data[1] - ir - 1, irr + 2, irr + 2);
-						ctx.stroke();
-					}
-				}
-				t = cell;			
-			});
+					t = cell;			
+				});
+			}
 			
 			// Red squared on body centers
 			if (HIDE.render.opt.worldSelector && world == HIDE.world){
@@ -185,12 +192,21 @@ newRun();
 
 // UI functionality
 
+//N key changes to a new base config geometry
 HIDE.util.keyMap.add(78, function(){
 	HIDE.remove();
 	vertices = Math.floor(Math.random() * 34) + 3;
 	levels = vertices < 6 ? 4: vertices < 10 ? 3: vertices < 17 ? 2: 1;
 	newRun();
 });
+
+//D key shifts one vertex off of every world
+HIDE.util.keyMap.add(68, function(){
+	HIDE.world.shift();
+	HIDE.world.pass(function(cell, index){ if (cell.hasBody()) cell.body.shift();});
+});
+
+
 
 var _rrad = [180, 180, 160, 120, 80, 80];
 var _rrot = [0.025, 0.025, 0.025, 0.025, 0.025];
@@ -206,9 +222,11 @@ function getRands(){
 }
 
 function beat(){
+	if (HIDE.trunks.length == 0) return;
 	HIDE.clearCanvas();
 	var r = getRands();
 	var rad = r[0], rot = r[1];
+	var world = HIDE.trunks[0];
 	world.data.radius = rad[0];
 	world.data.rotate = rot[0];
 	world.pass(function(cell, index){
@@ -225,15 +243,11 @@ function beat(){
 // MIDI mapping capability for MIDI controllers of all controls
 var tapHist = [], thLen = 16;
 function tap(refBPM){
-	var tt = 0.6;
 	var dn = Date.now();
-	// clear history if more then bpm reference * thLen has passed
-	// 120
-	//console.log('taphis len:', tapHist.length);
+	var tt = 0.6;
 	if (tapHist.length > 0){
 		var last = dn - tapHist[tapHist.length - 1];
 		var thresh = (1 / refBPM * 60000) * thLen;
-		//console.log(last, thresh);
 		if (last > thresh){
 			tapHist = [];
 		}
@@ -245,15 +259,12 @@ function tap(refBPM){
 		var diff = thLen - tapHist.length;
 		for (var i = 1; i < tapHist.length; i++){
 			var delta = tapHist[i] - tapHist[i - 1];
-			//console.log(delta);
 			deltas += delta;
 		}
 		var trust = tapHist.length / thLen;
-		//console.log(trust);
 		if (trust > tt){
 			var a = deltas / (tapHist.length - 1);
 			var o = 60000 / a;
-			//console.log("res", a, o);
 			return o;
 		}
 	}
