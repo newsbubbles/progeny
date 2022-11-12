@@ -5,9 +5,12 @@ const ease = 0.1;
 const radialEase = 0.2;
 
 var runIndex = 0;
+var vertices = 6;
+var levels = 3;
 
 function addVertex(){
 	var world = HIDE.world;
+	world.cells.reset();
 	var f = world.cells.origNode.d.data;
 	var l = world.cells.lastNode.next.d.data;
 	var a = _.avg(f, l);
@@ -18,9 +21,9 @@ function newRun(){
 	var drawCol = HIDE.colormap[runIndex].hex;
 	var conf = {
 		interval: 0,
-		numCells: 6,
+		numCells: vertices,
 		skipBody: 2,
-		duplicateLevels: 3,
+		duplicateLevels: levels,
 		dataWidth: 2,
 		dimTitles: ['x', 'y'],
 		initDimRange: [5, 5],
@@ -30,6 +33,7 @@ function newRun(){
 		data: {
 			radius: 120,
 			rotate: 0,
+			offset: [0, 0],
 		},
 		stats: {
 
@@ -112,8 +116,10 @@ function newRun(){
 			var parent = world.head;
 			while (parent != null){
 				center = _.add(center, parent.data);
+				center = _.add(center, world.data.offset);
 				parent = parent.world.head;
 			}
+
 
 			ctx.strokeStyle = drawCol;
 			var t = world.cells.lastNode.next.d;
@@ -121,10 +127,14 @@ function newRun(){
 			world.cells.forEach(function(cell, index){
 				var drawSelected = HIDE.world._hide.selected == index && !HIDE.trace
 				if (t != null){
+					// Final location in global coordinate space view
+					var f = _.add(center, cell.data);
+					var fo = _.add(world.data.offset, f);
+
 					// Radial lines
 					if (HIDE.render.opt.radial){
 						ctx.strokeStyle = '#666';
-						if (!HIDE.trace) HIDE.util.drawLine(center[0], center[1], center[0] + cell.data[0], center[1] + cell.data[1]);
+						if (!HIDE.trace) HIDE.util.drawLine(center[0], center[1], f[0], f[1]);
 					}
 
 					// Circumference lines
@@ -171,14 +181,18 @@ HIDE.render.opt = {
 
 newRun();
 
-// Some extra sloppy key mapping to be moved...
 
-/*HIDE.util.keyMap.add(38, function(){
-  HIDE.world._hide.cell.data[0] += 0;
-  HIDE.world._hide.cell.data[1] += -20;
-});*/
 
-var _rrad = [180, 180, 180, 180, 180];
+// UI functionality
+
+HIDE.util.keyMap.add(78, function(){
+	HIDE.remove();
+	vertices = Math.floor(Math.random() * 34) + 3;
+	levels = vertices < 6 ? 4: vertices < 10 ? 3: vertices < 17 ? 2: 1;
+	newRun();
+});
+
+var _rrad = [180, 180, 160, 120, 80, 80];
 var _rrot = [0.025, 0.025, 0.025, 0.025, 0.025];
 
 function getRands(){
@@ -266,28 +280,6 @@ function dance(bpm, beats){
 	window.dancer = setInterval(beat, ms);
 	beat();
 }
-
-/*
-	okay now whatch what happens when I turn up the level duplication
-
-	at first when I was looking I was like wtf?
-
-	becausee there is no ... difference from only 1 level, and you should see like way wider 
-	of a shape and more complex... but there was this error I saw by running dance.
-
-	what you see here is a fuckup...
-
-	... had to do with the way I was drawing it!!! fixed the actual problem with holarchy
-	... just now something with drawing things in the proper place is fucked up.
-	... also going to make a drip-down function that bubbles down through the layers and hase a level span number
-	... now that I figured out this problem, it was again having to do with pointers... 
-				javascript had conf by reference, which is good, cause functions in conf
-				but specifically the level count and duplicateLevels count was shared, so that caused the fuckup
-				duplicateLevels now on Cell.generateBody() only decreases configs count based on the level from each cell as it is being generated
-				this is an inline solution pretty much, and probably a local minima, but we shall see.
-
-TODO: FIX DRAW TO RIGHT CENTERING!!!!
-*/
 
 // Custom inspect function that adds any sort of information from a world to the data argument
 // This returns the output from HIDE.world.inspect() function

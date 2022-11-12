@@ -8,6 +8,7 @@
 
 const canvas = document.querySelector('#world');
 const ctx = canvas.getContext('2d');
+const gl = canvas.getContext('webgl2')
 
 const HIDE = {
 	world: null,
@@ -59,10 +60,34 @@ const HIDE = {
 		HIDE.world.start();
 		HIDE.init();
 	},
+	remove: function(world){
+		// Needs to get all worlds that use 
+		if (typeof world === 'undefined') world = HIDE.world;
+		world.stop();
+		var w = HIDE.trunks.indexOf(world);
+		if (w >= 0) HIDE.trunks.splice(w, 1);
+		HIDE._rebuild_worldIndex();
+		if (world == HIDE.world){
+			HIDE.world = null;
+		}
+	},
+	_rebuild_worldIndex: function(){
+		HIDE.worlds = [];
+		for (var i = 0; i < HIDE.trunks.length; i++){
+			var t = HIDE.trunks[i];
+			HIDE.worlds.push(t);
+			t.pass(function(cell, index){
+				if (cell.hasBody()){
+					HIDE.world.push(t);
+				}
+			});
+		}
+	},
 	init: function(){
 		if (!HIDE.initalized){
 			HIDE.initDrawThread();
 			HIDE.initalized = true;
+			HIDE.selectCell();
 		}
 	},
 	colormap: colormap,
@@ -91,6 +116,7 @@ const HIDE = {
 		HIDE.showCell(HIDE.world._hide.cell, HIDE.world._hide.selected);
 	},
 	showCell: function(cell, index){
+		if (cell == null) return;
 		var e = HIDE.q('#menu');
 		var ce = HIDE.q('#cellprev');
 		var t = HIDE.q('#cellname');
@@ -141,6 +167,8 @@ const HIDE = {
 		},
 	},
 	render: {
+		canvas: canvas,
+		ctx: ctx,
 		filter: {
 			level: 0,
 		},
@@ -162,6 +190,7 @@ const HIDE = {
 	},
 	stats: {
 		stdDev: function(cell){
+			if (cell == null) return;
 			var stats = cell.stats;
 			var stot = {}, l = 0;
 			cell.world.cells.forEach(function(cell, index){
@@ -230,7 +259,10 @@ window.addEventListener('load', function(e){
 
 
 	HIDE.selectCell();
-	setInterval(function(){HIDE.showCell(HIDE.world._hide.cell, HIDE.world._hide.selected);}, 3000);
+	setInterval(function(){
+		if (HIDE.world != null)
+			HIDE.showCell(HIDE.world._hide.cell, HIDE.world._hide.selected);
+	}, 3000);
 
 
 });

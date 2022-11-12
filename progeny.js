@@ -360,7 +360,7 @@ class World {
 				}
 			}
 			var cell = new Cell(conf, data);
-
+			cell.index = i;
 			this.cells.push(cell);
 		}
 		if (this.subWorld != null){
@@ -404,7 +404,7 @@ class World {
 			cell.step(skip);
 		});
 		// This needs to be placed perhaps on its own own thread, just accessed.
-		// Inline drawing means L(nmax) is first 
+		// Inline drawing means L(max(n)) is first 
 		if (this.inlineDrawing){
 			if (this.onDraw != null){
 				this.onDraw(this);
@@ -413,16 +413,6 @@ class World {
 		if (this.proxyLearning) this.learnProxy();
 		this.frame += 1;
 		if (this.frame >= this.maxAge && this.maxAge > 0) this.stop();
-	}
-
-	pass(func){
-		// Passes any per-cell function down through all sub-worlds
-		this.cells.forEach(function(cell, index){
-			func(cell, index);
-			if (cell.hasBody()){
-				cell.body.pass(func);
-			}
-		});
 	}
 
 	drawAll(){
@@ -449,9 +439,7 @@ class World {
 	learnProxy(){
 		// Proxy learner learns from the state vector of all cells
 		var state = this.getState();
-		if (this.frame == 100){
-			console.log(state);
-		}
+
 	}
 
 	start(){
@@ -545,6 +533,42 @@ class World {
 		});
 		return o;
 	}
+
+	pass(func, levels){
+		// Passes any per-cell function down through all sub-worlds
+		// Levels should be an array of bool if func should run on relative level
+		// If no levels exist, pass through to the bottom
+		// 	if levels exist: but len of levels is less than holarchy depth
+		//		stop if levels[-1] is false, run until bottom if true
+		var undef = typeof levels === 'undefined';
+		this.cells.forEach(function(cell, index){
+			var l0 = !undef ? levels.length > 0 ? levels[0]: null: null;
+			if (l0 != null || undef) 
+				func(cell, index);
+			if (cell.hasBody()){
+				cell.body.pass(func, levels);
+			}
+		});
+	}
+
+	fetch(address, o){
+		// address: an array of cell indices ie: [0, 2, 5, 1, 0]
+		// returns: a [0, ... n] vector/edge of cells a said indices
+		var o = o || [], l = 0;
+		this.cells.forEach(function(cell, index){
+			if (index == address[0]){
+				l = cell.world.level;
+				o.push(cell);
+				if (cell.hasBody()){
+					var r = cell.body.fetch(address.slice(1), o);
+				}
+			}
+		});
+		return {
+			address: address.slice(0, o.length),
+			cells: o,
+		};
+	}
 }
 
 
@@ -552,6 +576,7 @@ class Cell {
 
 	constructor(config, data){
 		//World
+		this.index = config['index'] || 0;
 		// points to actual parent world
 		this.world = config['world'] || null;
 		// subWorld points to a configuration to generate a world for the body of the cell

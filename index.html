@@ -59,9 +59,8 @@
   <body>
   	<canvas id="world"></canvas>
   	<div class="menu" id="menu"><span id="cellprev">&nbsp;</span> <span id="cellname"></span><div id="cellstats"></div></div>
+  	<script type="text/javascript"src="hide.js"></script>
   	<script type="text/javascript">
-			const canvas = _.q('#world');
-  		const ctx = canvas.getContext('2d');
   		const easeLoc = 0.0013, easeVel = 0.0058, minDist = 10, maxVel = 2.5;
   		const friction = 0.982;
   		const accel = 1.1, decel = 0.9;
@@ -76,85 +75,6 @@
 				50000: 0.08,
 				100000: 0.05
 			}
-
-  		//const deathAudio = new Audio('dead.wav');
-
-  		function drawLine(x1, y1, x2, y2){
-				ctx.beginPath();
-				ctx.moveTo(x1, y1);
-				ctx.lineTo(x2, y2);
-				ctx.stroke();
-				ctx.closePath();
-  		}
-
-  		window.selected = 0;
-  		function selectCell(){
-				window.world.cells.forEach(function(cell, index){
-					if (index == window.selected){
-						window.cell = cell;
-					}
-				});
-				showCell(window.cell, window.selected);
-  		}
-
-  		function stdDev(cell){
-  			var stats = cell.stats;
-  			var stot = {}, l = 0;
-  			var isPred = isPredator(cell);
-  			window.world.cells.forEach(function(cell, index){
-  				var isP = isPredator(cell);
-  				if (isP != isPred) return;
-  				var cst = cell.stats;
-  				for (k in cst){
-  					if (cst.hasOwnProperty(k)){
-  						v = cst[k];
-  						if (!stot.hasOwnProperty(k)) stot[k] = 0;
-  						stot[k] += v;
-  					}
-  				}
-					l += 1;
-  			});
-  			//console.log(stot);
-  			var mean = {};
-  			for (k in stot){
-  				mean[k] = stot[k] / l;
-  			}
-  			//console.log(l);
-  			//console.log(mean);
-  			var sd = {};
-  			for (k in mean){
-  				sd[k] = cell.stats[k] - mean[k];
-  			}
-  			//console.log(sd);
-  			return sd;
-  		}
-
-  		function showCell(cell, index){
-  			var e = _.q('#menu');
-  			var ce = _.q('#cellprev');
-  			var t = _.q('#cellname');
-  			var s = _.q('#cellstats');
-  			var strP = '';
- 				ce.style.backgroundColor = colormap[index].hex;
-  			if (isPredator(cell)){
-  				ce.style.borderColor = '#f00';
-  				strP = 'predator';
-  			}else{
-  				ce.style.borderColor = '#0f0';
-  				strP = 'prey';
-  			}
-  			var cst = '';
-  			var sd = stdDev(cell);
-  			//console.log(sd);
-  			for (k in cell.stats){
-  				if (cell.stats.hasOwnProperty(k)){
-  					var sdev = sd[k] > 0 ? '+' + Math.round(sd[k]): Math.round(sd[k]);
-  					cst += '<div><label>' + k + '</label>: <span>' + cell.stats[k] + '</span> <i>(<span class="sdev">' + sdev + '</span>)</i></div>'
-  				}
-  			}
-  			t.innerHTML = 'Agent ' + index + ' <i>(' + strP + ')</i>';
-  			s.innerHTML = cst;
-  		}
 
   		function isPredator(cell){
   			return cell.data[4] < ratioPredator;
@@ -204,33 +124,6 @@
   			return [v[0] * m, v[1] * m];
   		}
 
-  		// Load World and visualize it in the Canvas
-  		window.addEventListener('load', function(e){
-  			//make sure canvas resizes
-
-  			function resizeCanvas(e){
-  				var el = canvas;
-  				el.width = window.innerWidth;
-  				el.height = window.innerHeight;
-  			}
-  			window.addEventListener('resize', resizeCanvas);
-  			resizeCanvas(null);
-  			window.addEventListener('keydown', function(e){
-  				var k = e.keyCode;
-  				if (k == 39 || k == 40) window.selected += 1;
-  				if (k == 37 || k == 38) window.selected -= 1;
-  				if (window.selected < 0) window.selected = numPlayers - 1;
-  				if (window.selected >= numPlayers) window.selected = 0;
-  				selectCell();
-  			});
-  			_.q('#cellprev').addEventListener('click', function(e){
-  				window.selected += 1;
-  				if (window.selected >= numPlayers) window.selected = 0;
-  				selectCell();
-  			});
-
-  			//pipe = new Pipe()
-			//console.log(pipe.steps)
 			/*
 				ideas to try:
 					create attacking or sharing
@@ -425,7 +318,7 @@
   						var r = (predator ? 8: 5);
   						var rr = r * 2;
   						var ir = r * cell.data[5], irr = rr * cell.data[5];
-  						if (index == window.selected){
+  						if (index == HIDE.world.selected){
 	  						ctx.strokeStyle = '#999';
 	  						ctx.lineWidth = 0.5;
 	  						drawLine(x, 0, x, canvas.height);
@@ -433,10 +326,10 @@
 	  						ctx.strokeStyle = '#ddd';
 	  						for (var nn = 0; nn < cell.neighbors.length; nn++){
 	  							var nv = cell.neighbors[nn];
-	  							drawLine(x, y, nv[0].x, nv[0].y);
+	  							HIDE.util.drawLine(x, y, nv[0].x, nv[0].y);
 	  						}
 	  					}
-  						ctx.fillStyle = window.colormap[index].hex;
+  						ctx.fillStyle = HIDE.colormap[index].hex;
   						ctx.strokeStyle = predator ? '#f00': '#0f0';
   						ctx.fillRect(x - ir, y - ir, irr, irr);
   						ctx.lineWidth = 1;
@@ -448,19 +341,8 @@
   			};
 
   			// Create world from configuration
-  			window.world = new World(conf);
+  			HIDE.push(new World(conf));
 
-  			// Create the cells in the world
-  			window.world.generate();
-  			console.log(world.cells.origNode);
-  			
-  			// Start the world, to stop use world.stop()
-  			world.start();
-
-	  		selectCell();
-	  		setInterval(function(){showCell(window.cell, window.selected);}, 3000);
-
-  		});
   	</script>
   </body>
 </html>

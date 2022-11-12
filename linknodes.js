@@ -5,9 +5,11 @@
 var LL = function(data){
 	var o = {};
 	o.node = {d: data, next: null, last: null};
+	o.iterators = {};	// Added Nov-2022, allows multi-operation access
 	o.origNode = null;
 	o.lastNode = null;
 	o.count = 0;
+	o.iterCount = 0;
 
 	o.push = function(data, func){
 		this.node.next = {d: data, next: null, last: this.lastNode};
@@ -55,13 +57,18 @@ var LL = function(data){
 	};
 
 	o.forEach = function(func){
-		this.reset();
+		//this.reset();
+		var iti = this.iterCount;
+		this.iterators[iti] = this.origNode;
+		var node = this.iterators[iti];
+		this.iterCount++;
 		var i = 0;
-		while (this.node != null){
-			func(this.node.d, i);
-			this.node = this.node.next;
+		while (node != null){
+			func(node.d, i);
+			node = node.next;
 			i += 1;
 		}
+		delete this.iterators[iti];
 	};
 
 	return o;
