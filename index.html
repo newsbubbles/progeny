@@ -96,19 +96,19 @@
 	  			// if hit a border, stop velocity or 
 	  			if (clipped){
 	  				if (bouncyWalls){
-	  					if (clx) cell.data[2] = -cell.data[2];
-	  					if (cly) cell.data[3] = -cell.data[3];
+	  					if (clx) cell.velocities[0] = -cell.velocities[0];
+	  					if (cly) cell.velocities[1] = -cell.velocities[1];
 	  				}else{
-	  					cell.data[2] = 0;
-	  					cell.data[3] = 0;
+	  					cell.velocities[0] = 0;
+	  					cell.velocities[1] = 0;
 	  				}
 	  			}
 	  		}
 	  		// velocity clipping
-  			if (cell.data[2] > maxVel) cell.data[2] = maxVel;
-  			if (cell.data[2] < -maxVel) cell.data[2] = -maxVel;
-  			if (cell.data[3] > maxVel) cell.data[3] = maxVel;
-  			if (cell.data[3] < -maxVel) cell.data[3] = -maxVel;
+  			if (cell.velocities[0] > maxVel) cell.velocities[0] = maxVel;
+  			if (cell.velocities[0] < -maxVel) cell.velocities[0] = -maxVel;
+  			if (cell.velocities[1] > maxVel) cell.velocities[1] = maxVel;
+  			if (cell.velocities[1] < -maxVel) cell.velocities[1] = -maxVel;
   		};
   		function locDiff(v1, v2){
   			return [v2[0] - v1[0], v2[1] - v1[1]];
@@ -158,6 +158,7 @@
   					'score': 0,
   				},
   				init: function(world){
+
   					/*world.cells.forEach(function(cell, index){
 	  					var predator = cell.data[4] < ratioPredator;
 	  					if (predator){
@@ -173,58 +174,58 @@
 							//Move toward neighbor
 							d = locDiff(cell.data, neighbor);
 							e = vecMult(d, easeLoc * cell.data[6]);
-							cell.agg(2, e[0]);
-							cell.agg(3, e[1]);
+							cell.agg(0, e[0]);
+							cell.agg(1, e[1]);
 						},
 						function(cell, neighbor){
 							//Move away from neighbor
 							d = locDiff(cell.data, neighbor);
 							e = vecMult(d, easeLoc * cell.data[6]);
-							cell.agg(2, -e[0]);
-							cell.agg(3, -e[1]);
+							cell.agg(0, -e[0]);
+							cell.agg(1, -e[1]);
 						},
 						function(cell, neighbor){
 							//Move in same direction as neighbor
 							d = velDiff(cell.data, neighbor);
 							e = vecMult(d, easeVel);
-							cell.agg(2, e[0]);
-							cell.agg(3, e[1]);
+							cell.agg(0, e[0]);
+							cell.agg(1, e[1]);
 						},
 						function(cell, neighbor){
 							//Move in opposite direction
 							d = velDiff(cell.data, neighbor);
 							e = vecMult(d, easeVel);
-							cell.agg(2, -e[0]);
-							cell.agg(3, -e[1]);
+							cell.agg(0, -e[0]);
+							cell.agg(1, -e[1]);
 						},
 						/* Non-relative movement */
 						function(cell, neighbor){
 							//Move up
 							d = velDiff(cell.data, [0, 0, 0, -maxVel]);
 							e = vecMult(d, easeLoc * cell.data[6]);
-							cell.agg(2, e[0]);
-							cell.agg(3, e[1]);
+							cell.agg(0, e[0]);
+							cell.agg(1, e[1]);
 						},
 						function(cell, neighbor){
 							//Move down
 							d = velDiff(cell.data, [0, 0, 0, +maxVel]);
 							e = vecMult(d, easeLoc * cell.data[6]);
-							cell.agg(2, e[0]);
-							cell.agg(3, e[1]);
+							cell.agg(0, e[0]);
+							cell.agg(1, e[1]);
 						},
 						function(cell, neighbor){
 							//Move left
 							d = velDiff(cell.data, [0, 0, -maxVel, 0]);
 							e = vecMult(d, easeLoc * cell.data[6]);
-							cell.agg(2, e[0]);
-							cell.agg(3, e[1]);
+							cell.agg(0, e[0]);
+							cell.agg(1, e[1]);
 						},
 						function(cell, neighbor){
 							//Move right
 							d = velDiff(cell.data, [0, 0, +maxVel, 0]);
 							e = vecMult(d, easeLoc * cell.data[6]);
-							cell.agg(2, e[0]);
-							cell.agg(3, e[1]);
+							cell.agg(0, e[0]);
+							cell.agg(1, e[1]);
 						},
 						/*function(cell){
 							//Accelerate
@@ -248,12 +249,12 @@
 						}
 
 						//use the data[2] and data[3] as velocity vector for data[0] and data[1]
-						cell.agg(0, cell.data[2]);
-						cell.agg(1, cell.data[3]);
+						//cell.agg(0, cell.data[2]);
+						//cell.agg(1, cell.data[3]);
 
 						//multiply velocity times global friction coefficient
-						cell.mult(2, friction);
-						cell.mult(3, friction);
+						cell.velocities[0] *= friction;
+						cell.velocities[1] *= friction;
 						//cell.data[3] += 0.1;
 
 						window.clipcell(cell);
@@ -318,11 +319,11 @@
   						var r = (predator ? 8: 5);
   						var rr = r * 2;
   						var ir = r * cell.data[5], irr = rr * cell.data[5];
-  						if (index == HIDE.world.selected){
+  						if (index == world._hide.selected){
 	  						ctx.strokeStyle = '#999';
 	  						ctx.lineWidth = 0.5;
-	  						drawLine(x, 0, x, canvas.height);
-	  						drawLine(0, y, canvas.width, y);
+	  						HIDE.util.drawLine(x, 0, x, canvas.height);
+	  						HIDE.util.drawLine(0, y, canvas.width, y);
 	  						ctx.strokeStyle = '#ddd';
 	  						for (var nn = 0; nn < cell.neighbors.length; nn++){
 	  							var nv = cell.neighbors[nn];
@@ -341,7 +342,7 @@
   			};
 
   			// Create world from configuration
-  			HIDE.push(new World(conf));
+  			HIDE.boot(new World(conf));
 
   	</script>
   </body>

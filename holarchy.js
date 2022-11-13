@@ -6,7 +6,7 @@ const radialEase = 0.2;
 
 var runIndex = 0;
 var vertices = 5;
-var levels = 2;
+var levels = 4;
 
 function addVertex(world){
 	var n = world.cells.origNode.d;
@@ -187,7 +187,6 @@ HIDE.render.opt = {
 };
 
 newRun();
-
 
 
 // UI functionality

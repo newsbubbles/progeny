@@ -400,7 +400,7 @@ class World {
 		this.cells.forEach(function(cell, index){
 			var skip = su ? Math.random() < 0.5: false;
 			if (skip){
-				console.log('skip');
+				//console.log('skip');
 			}
 			cell.step(skip);
 		});
@@ -482,7 +482,7 @@ class World {
 		// if a function is passed, o.f is output as return value, world as input
 		var o = {
 			level: this.level,
-			head: this.hasHead() ? this.head.data: null,
+			head: this.hasHead() ? this.head.get(): null,
 			parameters: this.data,
 			paramShared: this.sharedData,
 			duplicate: this.duplicateLevels,
@@ -710,6 +710,15 @@ class Cell {
 		var a = this.world.dimTitles;
 		for (var i = 0; i < a.length; i++){
 			o.push(m[a[i]]);
+		}
+		return o;
+	}
+
+	get(){
+		var o = {};
+		var l = this.data.length;
+		for (var i = 0; i < l; i++){
+			o[this.world.dimTitles[i]] = this.data[i];
 		}
 		return o;
 	}
